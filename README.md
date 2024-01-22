@@ -4,7 +4,7 @@ Developing a SNR tool for use in cetacean research
 
 ## Working outline for SNR functions
 ### function "snr.extractSN"
-[[xSignal, xNoise] =snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
+[xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
 * x = data vector
 * fs = sampling rate
 * sigStart = signal start time or sample
