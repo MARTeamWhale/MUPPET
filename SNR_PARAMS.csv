@@ -1,0 +1,3 @@
+﻿Species,Call Type,Lower Frequency,Upper Frequency,Noise Distance,Buffer Samples
+Blue Whale,Audible,30,120,1,512
+Red Whale,Tonal,200,300,1,512
