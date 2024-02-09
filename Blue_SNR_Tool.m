@@ -57,8 +57,9 @@ end
 calltype = calltypelist(ct_idx,1);
 SNR_PARAMS_filtered = SNR_PARAMS(strcmp(SNR_PARAMS.Species,string(species{1,1})) & strcmp(SNR_PARAMS.CallType,string(calltype{1,1})),:);
 Freq_band = [SNR_PARAMS_filtered.LowerFrequency SNR_PARAMS_filtered.UpperFrequency];
-NoiseDistance = SNR_PARAMS_filtered.NoiseDistance;
-BP_buffer_samples = SNR_PARAMS_filtered.BufferSamples;
+NoiseDistance = SNR_PARAMS_filtered.NoiseDistance; 
+BP_buffer = SNR_PARAMS_filtered.BP_Buffer;
+Units = string(SNR_PARAMS_filtered.Units);
 %%%
 %%%
 for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
@@ -105,12 +106,15 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     %%%
     %pass: start90, stop90, noiseDistance,and bandpassed wav clip + buffer to extractSN.m
     %output: signal clip and noise clip
-    %[Signal_clip, Noise_clip] = extractSN(BP_clip,Start90,End90,NoiseDistance);
+    %Temporary function test:
+    [xSignal, xNoise] = snr.extractSN(x,Fs,Start90,End90,NoiseDistance,Units);
+    %[xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
+    %
     %%%
     %%%
     %pass: signal clip and noise clip to calculateSNR.m
     %output: SNR
-    %PLA.SNR(i)  = calculateSNR(Signal_clip, Noise_clip);
+    %PLA.SNR(i)  = calculateSNR(xSignal, xNoise);
     %%%
     end           
 end % end PAMLAB annotations loop
