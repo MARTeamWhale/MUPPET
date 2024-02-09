@@ -66,32 +66,53 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     opts = detectImportOptions(file);
     opts.VariableNamesLine = 3;
     opts.Delimiter = ",";
+    
     PLA = readtable(file,opts);
+    PLA.SNR = NaN(height(PLA),1);
     
     %%% get wav file and read it in
     temp = split(PAMLAB_ANNOTATIONS(p).name,'.');
     FileStartTime = readDateTime(PAMLAB_ANNOTATIONS(p).name);
     temp(end) = {'wav'};
     FileName = strjoin(temp, '.');
-    x = audioread(fullfile(PATH2DATA,FileName));
-    %%%
-   
-    %%% Get Start90 and End90 RelativeStartTime
-    Start90 = str2double(PLA.StartTime90);
-    End90 = str2double(PLA.StopTime90);
-    RelativeStartTime = str2doublePLA.RelativeStartTime);
-    %%%
-    %%% Transform Start90 and End90 with RelativeStartTime 
+    [x,Fs] = audioread(fullfile(PATH2DATA,FileName));
+    [M,q] = size(x); %get size length of audio
+    dt = 1/Fs;      %time between samples in seconds
+    t = dt*(0:M-1)';%get time index in seconds
+    xt = [x t];
     
-
-        %Loop through blue whale calls
-            %pass: raw wav,Start90, End90,[frequency band],buffer size,and noiseDistance to BP_clip.m
-                %output: bandpassed wav clip + buffer 
-            %pass: start90, stop90, noiseDistance,and bandpassed wav clip + buffer to extractSN.m
-                %output: signal clip and noise clip
-            %pass: signal clip and noise clip to calculateSNR.m
-                %output: SNR
-                
+    %%%
+    
+    %%%  Loop through blue whale calls
+    for i = 1:height(PLA)
+    %%% Get Start90 and End90 RelativeStartTime
+    %%% Transform Start90 and End90 with RelativeStartTime
+    
+    RelativeStartTime = PLA.RelativeStartTime(i);
+    if ~isa(RelativeStartTime,'double')
+         RelativeStartTime = str2double(PLA.RelativeStartTime(i));
+    end
+    
+    Start90 = str2double(PLA.StartTime90(i)) + RelativeStartTime;
+    End90 = str2double(PLA.StopTime90(i)) + RelativeStartTime;
+    
+    
+    %%%
+    %pass: raw wav,Start90, End90,[frequency band],buffer size,and noiseDistance to BP_clip.m
+    %output: bandpassed wav clip + buffer
+    %BP_clip = snr.BP_clip(x,Start90,End90,Freq_band,NoiseDistance,BP_buffer_samples);
+    %%%
+    %%%
+    %pass: start90, stop90, noiseDistance,and bandpassed wav clip + buffer to extractSN.m
+    %output: signal clip and noise clip
+    %[Signal_clip, Noise_clip] = extractSN(BP_clip,Start90,End90,NoiseDistance);
+    %%%
+    %%%
+    %pass: signal clip and noise clip to calculateSNR.m
+    %output: SNR
+    %PLA.SNR(i)  = calculateSNR(Signal_clip, Noise_clip);
+    %%%
+    end           
 end % end PAMLAB annotations loop
             
 %OUTPUT: filename RelativeStartTime Start90 End90 SNR
