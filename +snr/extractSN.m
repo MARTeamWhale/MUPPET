@@ -8,16 +8,21 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, unit
 % DEV NOTES:
 % - Consider whether or not bandpass filtering should be implemented as an
 % option within this function
+% - Things I might do:
+%   -- combine sigStart and sigStop into a single variable (makes for less
+%   documentation and fewer input arguments
+%   -- add input parsing with inputParser
+%   -- add noise range as an output argument (in samples)
 
 
     % get sigStart, sigStop, and noiseDist as samples, based on "units"
     switch units
-        case 'time'
+        case 'seconds'
             samplesFromInput = @(a) round(a*fs);
         case 'samples'
             samplesFromInput = @(a) a;
         otherwise
-            error('Invalid value for "units": must be either ''time'' or ''samples''.')
+            error('Invalid value for "units": must be either ''seconds'' or ''samples''.')
     end
     sigStartSample = samplesFromInput(sigStart);
     sigStopSample = samplesFromInput(sigStop);
