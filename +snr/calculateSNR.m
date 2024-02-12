@@ -5,8 +5,11 @@ function snrVal = calculateSNR(xSignal, xNoise)
 % Last updated by Mike Adams
 % 2024-02-12
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-RMN = 1;
+%DEV NOTES: Still need to decide which SNR calc to use and wether or not to
+%remove mean noise from signal or not. 
+% 
+% Remove Mean Noise
+RMN = 1; % change to 0 to skip
 if RMN == 1
    xSignal = xSignal - mean(xNoise); 
 end
