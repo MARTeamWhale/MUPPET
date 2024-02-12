@@ -1,14 +1,19 @@
-%Blue_SNR_Tool.m
+% Blue_SNR_Tool.m
 %
-%Process Pamlab output for use in SNR tool.
+% Process Pamlab output for use in SNR tool.
+%
+%
+% Last updated by Mike Adams
+% 2024-02-09
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
 clear
 close all
 
-%Get list of Pamlab Output csv
+%Get list of Pamlab Output csv and path to wav files
 PATH2INPUT = uigetdir('','SELECT FOLDER WITH PAMLAB OUTPUT');
 PAMLAB_ANNOTATIONS = dir(fullfile(PATH2INPUT, '**\*.csv'));
-
 PATH2DATA = uigetdir('','SELECT FOLDER WITH WAV FILES');
 
 %%% read in call type params: 
@@ -69,7 +74,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     opts.Delimiter = ",";
     
     PLA = readtable(file,opts);
-    PLA.SNR = NaN(height(PLA),1);
+    PLA.SNR = NaN(height(PLA),1); %create location to save SNR
     
     %%% get wav file and read it in
     temp = split(PAMLAB_ANNOTATIONS(p).name,'.');
@@ -114,7 +119,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     %%%
     %pass: signal clip and noise clip to calculateSNR.m
     %output: SNR
-    %PLA.SNR(i)  = calculateSNR(xSignal, xNoise);
+    PLA.SNR(i)  = snr.calculateSNR(xSignal, xNoise);
     %%%
     end           
 end % end PAMLAB annotations loop
