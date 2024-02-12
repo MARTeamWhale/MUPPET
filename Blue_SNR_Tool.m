@@ -2,9 +2,11 @@
 %
 % Process Pamlab output for use in SNR tool.
 %
+%
 % Last updated by Mike Adams
 % 2024-02-09
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
 clear
 close all
