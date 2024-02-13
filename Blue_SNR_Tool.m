@@ -78,8 +78,18 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
          RelativeStartTime = str2double(PLA.RelativeStartTime(i));
     end
     
-    Start90 = str2double(PLA.StartTime90(i)) + RelativeStartTime;
-    End90 = str2double(PLA.StopTime90(i)) + RelativeStartTime;
+    PLA_StartTime90 = PLA.StartTime90(i);
+    if ~isa(PLA_StartTime90,'double')
+        PLA_StartTime90 = str2double(PLA.StartTime90(i));
+    end
+    
+    PLA_StopTime90 = PLA.StopTime90(i);
+    if ~isa(PLA_StopTime90,'double')
+        PLA_StopTime90 = str2double(PLA.StopTime90(i));
+    end
+    
+    Start90 = PLA_StartTime90 + RelativeStartTime;
+    End90 = PLA_StopTime90 + RelativeStartTime;
     
     
     %%%
