@@ -1,3 +1,4 @@
 ﻿Species,Call Type,Lower Frequency,Upper Frequency,Noise Distance,BP_Buffer, Units
-Blue Whale,Audible,30,120,1,0.0320,time
-Red Whale,Tonal,200,300,1,0.0320,time
+Blue Whale,Audible,30,120,1,0.0320,seconds
+Blue Whale,Tonal,40,120,1,0.0320,seconds
+Red Whale,Tonal,200,300,1,0.0320,seconds
