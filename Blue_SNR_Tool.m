@@ -58,7 +58,6 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     
     %%% get wav file and read it in
     temp = split(PAMLAB_ANNOTATIONS(p).name,'.');
-    FileStartTime = readDateTime(PAMLAB_ANNOTATIONS(p).name);
     temp(end) = {'wav'};
     FileName = strjoin(temp, '.');
     [x,Fs] = audioread(fullfile(PATH2DATA,FileName));
