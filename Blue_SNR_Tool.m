@@ -23,42 +23,21 @@ PATH2DATA = uigetdir('','SELECT FOLDER WITH WAV FILES');
                          % noiseDistance x
                          % buffer size (maybe) x
 SNR_PARAMS = readtable("SNR_PARAMS.csv"); %Change PARAM file here if required
-specieslist = table(SNR_PARAMS.Species);
-specieslist.Properties.VariableNames(1) = "Species";
-specieslist.index = (1:height(specieslist)).';
-disp(specieslist)
-s = 0;
-while s == 0
-    sp_idx = input("Choose species by entering index number:");
-    if sp_idx > height(specieslist)
-        disp("Invalid species index")
-    elseif sp_idx < 1
-        disp("Invalid species index")
-    elseif isinteger(sp_idx)
-        disp("Invalid species index")
-    else
-        s = 1;
-    end
-end
+specieslist = {SNR_PARAMS.Species};
+specieslist = unique(horzcat(specieslist{:}),'stable');
+sp_idx = listdlg('PromptString','Select a species:',...
+                  'SelectionMode','single',...
+                  'ListString',specieslist);
 species = specieslist(sp_idx,1);
 calltypelist = SNR_PARAMS.CallType(strcmp(SNR_PARAMS.Species,string(species{1,1})),:);
-calltypelist = table(calltypelist);
-calltypelist.Properties.VariableNames(1) = "Call Type";
-calltypelist.index = (1:height(calltypelist)).';
-disp(calltypelist)
-c = 0;
-while c == 0
-    ct_idx = input("Choose call type by entering index number:");
-    if ct_idx > height(calltypelist)
-        disp("Invalid call type index")
-    elseif ct_idx < 1
-        disp("Invalid call type index")
-    elseif isinteger(ct_idx)
-        disp("Invalid call type index")
-    else
-        c = 1;
-    end
-end
+calltypelist = {calltypelist};
+calltypelist = unique(horzcat(calltypelist{:}),'stable');
+%if length(calltypelist)== 1
+%    calltypelist = string(calltypelist);
+%end
+ct_idx = listdlg('PromptString','Select a call type:',...
+                  'SelectionMode','single',...
+                  'ListString',calltypelist);
 calltype = calltypelist(ct_idx,1);
 SNR_PARAMS_filtered = SNR_PARAMS(strcmp(SNR_PARAMS.Species,string(species{1,1})) & strcmp(SNR_PARAMS.CallType,string(calltype{1,1})),:);
 Freq_band = [SNR_PARAMS_filtered.LowerFrequency SNR_PARAMS_filtered.UpperFrequency];
@@ -119,7 +98,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     %%%
     %pass: signal clip and noise clip to calculateSNR.m
     %output: SNR
-    PLA.SNR(i)  = snr.calculateSNR(xSignal, xNoise);
+    %PLA.SNR(i)  = snr.calculateSNR(xSignal, xNoise,Fs);
     %%%
     end           
 end % end PAMLAB annotations loop
