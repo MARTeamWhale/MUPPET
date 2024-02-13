@@ -48,9 +48,10 @@ Units = string(SNR_PARAMS_filtered.Units);
 %%%
 for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     file = fullfile(PAMLAB_ANNOTATIONS(p).folder,PAMLAB_ANNOTATIONS(p).name);
-    opts = detectImportOptions(file);
-    opts.VariableNamesLine = 3;
-    opts.Delimiter = ",";
+    opts = detectImportOptions(file, 'NumHeaderLines',2, 'Delimiter',',');
+    %opts = detectImportOptions(file);
+    %opts.VariableNamesLine = 3;
+    %opts.Delimiter = ",";
     
     PLA = readtable(file,opts);
     PLA.SNR = NaN(height(PLA),1); %create location to save SNR
