@@ -6,7 +6,8 @@ Maritimes Team Whale
 Goal: Developing a SNR tool for use in cetacean research
 
 ## Introduction
-This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations. 
+This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
+Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script with two underlying functions. The helper script (**Blue_SNR_Tool.m**) imports the JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the two underlying functions, the first (**snr.extractSN**) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a *insert filter type here*. The clipped and bandpassed call and noise samples are then passed to the second function (**snr.calculateSNR**) to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.  
 
 ## Set up
 
@@ -15,7 +16,7 @@ This tool is for use in calculating the signal to noise (SNR) for cetacean vocal
 2) Add this new directory with all of its subfolders to your MATLAB path.
 ### Requirements
 
-The tool requires a few inputs to calculate the SNR values.
+The tool requires inputs to calculate the SNR values. These include:
   -  SNR_PARAMS.csv: a parameter file which contains the filtering and noise presets for each specie's call type. This file has values for:
       - Species - The species of interest (e.g. Blue Whale)
       - Call Type - The call type (e.g. Tonal) 
