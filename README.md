@@ -9,10 +9,12 @@ Goal: Developing a SNR tool for use in cetacean research
 This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations. 
 
 ## Set up
+
 ### Initial Start Up
 1) Either clone or download the .zip and unzip the SNR_Tool_Development repository to your local machine.
-2) Add this new directory with all its subfolders to your MATLAB path.
+2) Add this new directory with all of its subfolders to your MATLAB path.
 ### Requirements
+
 The tool requires a few inputs to calculate the SNR values.
   -  SNR_PARAMS.csv: a parameter file which contains the filtering and noise presets for each specie's call type. This file has values for:
       - Species - The species of interest (e.g. Blue Whale)
@@ -31,7 +33,7 @@ The tool requires a few inputs to calculate the SNR values.
 
 ## Working outline for SNR functions
 
-### function "snr.extractSN"
+### **snr.extractSN**
 ```matlab
 [xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
 ```
@@ -44,10 +46,10 @@ The tool requires a few inputs to calculate the SNR values.
 - units = string specifying if start, stop, and distance inputs represent time or samples
 
 **Outputs**
-- xSignal = 
-- xNoise = 
+- xSignal = extracted signal samples
+- xNoise = extracted noise samples
 
-### function "snr.calculateSNR"
+### **snr.calculateSNR**
 ```matlab
 [snrVal] = calculateSNR(xSignal, xNoise)
 ```
