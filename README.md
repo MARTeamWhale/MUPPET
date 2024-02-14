@@ -38,6 +38,8 @@ The tool requires inputs to calculate the SNR values. These include:
 ```matlab
 [xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
 ```
+**Purpose**
+Extract a matrix of samples from an acoustic timeseries coresponding to a defined start and stop time. Additionally, extract a matrix of samples of the same length some defined distance before the signal of interest, to represent a sample of background noise. The interval seperating the signal samples and the noise samples is user defined and dependant on the acoustic properties of the signal. *The signal and noise matrices will potentially be bandpass filtered within this function.* 
 **Inputs**
 - x = data vector
 - fs = sampling rate
@@ -54,9 +56,11 @@ The tool requires inputs to calculate the SNR values. These include:
 ```matlab
 [snrVal] = calculateSNR(xSignal, xNoise)
 ```
+**Purpose**
+Calculate the signal to noise ratio given pre-isolated windows of signal and noise. 
 **Inputs**
 - xSignal = signal samples
 - xNoise = noise samples
 
 **Outputs**
-- snrVal = Signal to Noise Ratio value
+- snrVal = Signal to Noise Ratio value (dB)
