@@ -32,15 +32,28 @@ The tool requires a few inputs to calculate the SNR values.
 ## Working outline for SNR functions
 
 ### function "snr.extractSN"
+```matlab
 [xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
-* x = data vector
-* fs = sampling rate
-* sigStart = signal start time or sample
-* sigStop = signal stop time or sample
-* noiseDist = distance from signal from which to sample noise, in time or samples
-* units = string specifying if start, stop, and distance inputs represent time or samples
+```
+**Inputs**
+- x = data vector
+- fs = sampling rate
+- sigStart = signal start time or sample
+- sigStop = signal stop time or sample
+- noiseDist = distance from signal from which to sample noise, in time or samples
+- units = string specifying if start, stop, and distance inputs represent time or samples
+
+**Outputs**
+- xSignal = 
+- xNoise = 
 
 ### function "snr.calculateSNR"
+```matlab
 [snrVal] = calculateSNR(xSignal, xNoise)
-* xSignal = signal samples
-* xNoise = noise samples
+```
+**Inputs**
+- xSignal = signal samples
+- xNoise = noise samples
+
+**Outputs**
+- snrVal = Signal to Noise Ratio value
