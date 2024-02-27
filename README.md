@@ -38,17 +38,20 @@ The tool requires inputs to calculate the SNR values. These include:
 
 ### **snr.extractSN**
 ```matlab
-[xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
+[xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, clipBufferSize, dFilter, units)
 ```
 **Purpose**
-Extract a matrix of samples from an acoustic timeseries coresponding to a defined start and stop time. Additionally, extract a matrix of samples of the same length some defined distance before the signal of interest, to represent a sample of background noise. The interval seperating the signal samples and the noise samples is user defined and dependant on the acoustic properties of the signal. *The signal and noise matrices will potentially be bandpass filtered within this function.* 
+Extract a vector of samples from an acoustic timeseries coresponding to a defined start and stop time. Additionally, extract a vector of samples of the same length some defined distance before the signal of interest, to represent a sample of background noise. The interval seperating the signal samples and the noise samples is user-defined and dependant on the acoustic properties of the signal. Prior to signal and noise extraction, a digital filter (typically a bandpass FIR filter) is applied to a truncated version of the input timeseries. 
+
 **Inputs**
 - x = data vector
 - fs = sampling rate
-- sigStart = signal start time or sample
-- sigStop = signal stop time or sample
-- noiseDist = distance from signal from which to sample noise, in time or samples
-- units = string specifying if start, stop, and distance inputs represent time or samples
+- sigStart = signal start seconds or sample
+- sigStop = signal stop seconds or sample
+- noiseDist = distance from signal from which to sample noise, in seconds or samples
+- clipBufferSize = amount of buffer before and after the noise and signal, respectively, to determine the start and end points of the truncated clip that will later be filtered; may be in seconds or samples
+- dFilter = filter that will be applied to the truncated clip, in the form of a `digitalFilter` object from the Signal Processing Toolbox
+- units = string specifying if start, stop, noise distance, and clip buffer inputs represent seconds or samples
 
 **Outputs**
 - xSignal = extracted signal samples
@@ -56,13 +59,30 @@ Extract a matrix of samples from an acoustic timeseries coresponding to a define
 
 ### **snr.calculateSNR**
 ```matlab
-[snrVal] = calculateSNR(xSignal, xNoise)
+[snr_dB] = calculateSNR(xSignal, xNoise)
+[snr_dB] = calculateSNR(xSignal, xNoise, 'SubtractNoise',Value)
 ```
 **Purpose**
-Calculate the signal to noise ratio given pre-isolated windows of signal and noise. 
+Calculate the signal to noise ratio given pre-isolated windows of signal and noise. This is implemented as a RMS-based average power calculation.
+
 **Inputs**
 - xSignal = signal samples
 - xNoise = noise samples
+- 'SubtractNoise',Value = optional Name-Value pair that specifies whether or not to subtract noise power from the power derived from the signal input when calculating SNR. Subtracting noise power is meant to provide output that is more aligned with the true definition of SNR when the signal input actually represents a signal + noise mixture (which is almost always the case in any PAM analysis, and always will be the case using this SNR tool). *Value* is either `true` or `false`.
 
 **Outputs**
-- snrVal = Signal to Noise Ratio value (dB)
+- snr_dB = Signal to Noise Ratio value (dB)
+
+### **snr.noDelayFilt**
+```matlab
+[xFilt] = noDelayFilt(dFilter, x)
+```
+**Purpose**
+Filter a signal vector *x* using a `digitalFilter` object from the Signal Processing Toolbox, compensating for group delay introduced by the filter. This function only works if the delay is not frequency-dependent (usually the case with FIR filters). It will generally NOT work with IIR filters like the Butterworth filter - for those types of filters, the best option is to use MATLAB's `filtfilt`.
+
+**Inputs**
+- dFilter = filter to apply to the signal, in the form of a `digitalFilter` object from the Signal Processing Toolbox
+- x = data vector
+
+**Outputs**
+- xFilt = filtered data vector
