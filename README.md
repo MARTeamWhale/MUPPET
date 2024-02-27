@@ -7,7 +7,7 @@ Goal: Developing a SNR tool for use in cetacean research
 
 ## Introduction
 This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
-Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script with two underlying functions. The helper script (`Blue_SNR_Tool`) imports the JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the two underlying functions, the first (`snr.extractSN`) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a *insert filter type here*. The clipped and bandpassed call and noise samples are then passed to the second function (`snr.calculateSNR`) to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.  
+Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script with three underlying functions. The helper script (`Blue_SNR_Tool`) imports the JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the underlying functions, the first (`snr.extractSN`) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a Kaiser window-based FIR filter. Filtering is performed within `snr.extractSN` using the `snr.noDelayFilt` function, which applies the filter such that no time delays are introduced in the output. The clipped and bandpassed call and noise samples are then passed to the function (`snr.calculateSNR`) to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.  
 
 ## Set up
 
@@ -20,8 +20,10 @@ The tool requires inputs to calculate the SNR values. These include:
   -  SNR_PARAMS.csv: a parameter file which contains the filtering and noise presets for each specie's call type. This file has values for:
       - Species - The species of interest (e.g. Blue Whale)
       - Call Type - The call type (e.g. Tonal) 
-      - Lower Frequency - Lower bound of the bandpass filter (Hz)
-      - Upper Frequency - Upper bound of the bandpass filter (Hz)
+      - Lower Stopband Frequency - Frequency at the lower bound of the bandpass filter at which the desired attenuation level is reached (Hz). The closer this value is to the Lower Passband Frequency, the sharper the lower frequency cutoff will be, at the expense of increased filter order (and thus processing time). The attenuation level is currently 60 dB.
+      - Lower Passband Frequency - Lower bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the lowest frequency of interest.
+      - Upper Passband Frequency - Upper bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the highest frequency of interest.
+      - Upper Stopband Frequency - Frequency at the upper bound of the bandpass filter at which the desired attenuation level is reached (Hz). The closer this value is to the Upper Passband Frequency, the sharper the upper frequency cutoff will be, at the expense of increased filter order (and thus processing time). The attenuation level is currently 60 dB.
       - Noise Distance - Value to determine how far before the **signal** the **noise** sample will be taken
       - BP_Buffer - Value to add a buffer to the bandpass filter to minimize edge effects
       - Units - Definition of the units used in Noise Distance and BP_Buffer (seconds or samples)
