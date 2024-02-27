@@ -32,7 +32,7 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
     clipBufferSamples = samplesFromInput(clipBufferSize);
     
     % get signal and noise size
-    nSigSamples = sigStartSample - sigStopSample + 1;
+    nSigSamples = sigStopSample - sigStartSample + 1;
     
     % generate shorter clip (easier to filter)
     clipStartSample = sigStartSample - noiseDistSamples - nSigSamples - clipBufferSamples;
@@ -56,5 +56,21 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
     xSignal = xClipFilt(sigStartSampleClip:sigStopSampleClip);
     
     % isolate noise
-    xNoise = x(noiseStartSampleClip:noiseStopSampleClip);
+    xNoise = xClipFilt(noiseStartSampleClip:noiseStopSampleClip);
+    
+    %** DEBUG PLOT
+    %{
+    tClip = (((1:numel(xClip))-1)./fs)';
+    figure;
+    ax = axes();
+    ax.NextPlot = 'add';
+    plot(ax, tClip, xClip)
+    plot(ax, tClip, xClipFilt)
+    plot(ax, tClip(sigStartSampleClip:sigStopSampleClip), xSignal);
+    plot(ax, tClip(noiseStartSampleClip:noiseStopSampleClip), xNoise);
+    legend(ax, {'Unfiltered Clip', 'Filtered Clip', 'Signal', 'Noise'})
+    grid(ax, 'on')
+    box(ax, 'on')
+    keyboard
+    %}
 end

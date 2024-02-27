@@ -23,7 +23,8 @@ function snr_dB = calculateSNR(xSigWin, xNoiseWin, varargin)
     p.addRequired('xNoiseWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
     %p.addRequired('fs', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
     p.addParameter('SubtractNoise', false, @(val)validateattributes(val,{'logical'},{'scalar'}))
-    p.parse(xSigWin,xNoiseWin,fs,varargin{:});
+    %p.parse(xSigWin, xNoiseWin, fs, varargin{:});
+    p.parse(xSigWin, xNoiseWin, varargin{:});
     subtractNoise = p.Results.SubtractNoise;
     
     assert(size(xSigWin,2) == size(xNoiseWin,2), 'Signal and noise windows must have the same number of channels!')
