@@ -68,7 +68,15 @@ Calculate the signal to noise ratio given pre-isolated windows of signal and noi
 **Inputs**
 - xSignal = signal samples
 - xNoise = noise samples
-- 'SubtractNoise',Value = optional Name-Value pair that specifies whether or not to subtract noise power from the power derived from the signal input when calculating SNR. Subtracting noise power is meant to provide output that is more aligned with the true definition of SNR when the signal input actually represents a signal + noise mixture (which is almost always the case in any PAM analysis, and always will be the case using this SNR tool). *Value* is either `true` or `false`.
+- 'SubtractNoise',Value = optional Name-Value pair that specifies whether or not to subtract noise power from the power derived from the signal input when calculating SNR. Subtracting noise power is meant to provide output that is more aligned with the true definition of SNR when the signal input actually represents a signal + noise mixture (which is almost always the case in any PAM analysis, and always will be the case using this SNR tool). *Value* is either `true` or `false`. The effect that this parameter has on the output SNR value for different levels of noise versus true signal energy is summarized in the table below:
+
+| True Signal vs. Noise Energy | Expected SNR Value with<br>'SubtractNoise' = `false` | Expected SNR Value with<br>'SubtractNoise' = `true` |
+| :--------------------------- | :--------------------------------------------------: | :-------------------------------------------------: |
+| *Noise Absent; Signal Only*  | +Infinity | +Infinity |
+| *Signal > Noise*             | Positive  | Positive  |
+| *Signal = Noise*             | Positive  | 0         |
+| *Signal < Noise*             | Positive  | Negative  |
+| *Signal Absent; Noise Only*  | 0         | -Infinity |
 
 **Outputs**
 - snr_dB = Signal to Noise Ratio value (dB)
