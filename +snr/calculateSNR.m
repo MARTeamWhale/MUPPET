@@ -1,4 +1,4 @@
-function snr_dB = calculateSNR(xSigWin, xNoiseWin, fs, varargin)
+function snr_dB = calculateSNR(xSigWin, xNoiseWin, varargin)
 % Calculate signal-to-noise ratio, given pre-isolated windows of signal and
 % noise.
 %
@@ -13,7 +13,7 @@ function snr_dB = calculateSNR(xSigWin, xNoiseWin, fs, varargin)
 %
 %
 % Last updated by Wilfried Beslin
-% 2024-02-12
+% 2024-02-27
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -21,7 +21,7 @@ function snr_dB = calculateSNR(xSigWin, xNoiseWin, fs, varargin)
     p = inputParser();
     p.addRequired('xSigWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
     p.addRequired('xNoiseWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
-    p.addRequired('fs', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
+    %p.addRequired('fs', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
     p.addParameter('SubtractNoise', false, @(val)validateattributes(val,{'logical'},{'scalar'}))
     p.parse(xSigWin,xNoiseWin,fs,varargin{:});
     subtractNoise = p.Results.SubtractNoise;
@@ -29,6 +29,12 @@ function snr_dB = calculateSNR(xSigWin, xNoiseWin, fs, varargin)
     assert(size(xSigWin,2) == size(xNoiseWin,2), 'Signal and noise windows must have the same number of channels!')
     
     % calculate the power of the signal and noise windows
+    avepow = @(x) sum((x.^2),1)./size(x,1); % equation for calculating RMS-based average power for each channel
+    pSigWin = avepow(xSigWin);
+    pNoiseWin = avepow(xNoiseWin);
+    
+    %%% Old time-based calculation
+    %{
     %%% Remember: "power" in DSP usually means the **average power** of a
     %%% signal over a period of time, i.e., 
     %%%     sum(E_t*dt)/T
@@ -42,6 +48,7 @@ function snr_dB = calculateSNR(xSigWin, xNoiseWin, fs, varargin)
     
     durNoiseWin = size(xNoiseWin,1)/fs;
     pNoiseWin = avepow(xNoiseWin, dt, durNoiseWin);
+    %}
     
     % calculate SNR
     if subtractNoise
