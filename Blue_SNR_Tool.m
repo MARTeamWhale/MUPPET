@@ -119,6 +119,8 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
         %%% extract bandpass-filtered signal and noise samples
         [xSignal, xNoise] = snr.extractSN(x, Fs, Start90, End90, NoiseDistance, BP_buffer, bandpass_filter, Units);
         
+        %%% calculate SNR
+        PLA.SNR(i) = snr.calculateSNR(xSignal, xNoise, 'SubtractNoise',true);
 
         %%%
         %pass: raw wav,Start90, End90,[frequency band],buffer size,and noiseDistance to BP_clip.m
