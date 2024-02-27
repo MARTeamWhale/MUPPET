@@ -1,9 +1,9 @@
-function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, units)
+function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clipBufferSize, dFilter, units)
 % Isolate signal and associated noise samples from a larger audio time
 % series vector, given a pre-determined signal location.
 %
 % Last updated by Wilfried Beslin
-% 2024-02-09
+% 2024-02-26
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
 % - Consider whether or not bandpass filtering should be implemented as an
@@ -14,6 +14,8 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, unit
 %   -- add input parsing with inputParser
 %   -- add noise range as an output argument (in samples)
 
+    
+    import snr.noDelayFilt
 
     % get sigStart, sigStop, and noiseDist as samples, based on "units"
     switch units
@@ -27,13 +29,32 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, unit
     sigStartSample = samplesFromInput(sigStart);
     sigStopSample = samplesFromInput(sigStop);
     noiseDistSamples = samplesFromInput(noiseDist);
+    clipBufferSamples = samplesFromInput(clipBufferSize);
+    
+    % get signal and noise size
+    nSigSamples = sigStartSample - sigStopSample + 1;
+    
+    % generate shorter clip (easier to filter)
+    clipStartSample = sigStartSample - noiseDistSamples - nSigSamples - clipBufferSamples;
+    clipStopSample = sigStopSample + clipBufferSamples;
+    
+    %** there should be error-handling routines here, in case there are not
+    %** enough samples to generate the clip, extract noise, and/or extract
+    %** the signal.
+    xClip = x(clipStartSample:clipStopSample);
+    
+    % get relative signal and noise samples
+    sigStartSampleClip = clipBufferSamples + nSigSamples + noiseDistSamples + 1;
+    sigStopSampleClip = sigStartSampleClip + nSigSamples;
+    noiseStartSampleClip = sigStartSampleClip - noiseDistSamples - nSigSamples;
+    noiseStopSampleClip = sigStartSampleClip - noiseDistSamples - 1;
+    
+    % apply digital filter
+    xClipFilt = noDelayFilt(dFilter, xClip);
     
     % isolate signal
-    xSignal = x(sigStartSample:sigStopSample);
-    nSamples = numel(xSignal);
+    xSignal = xClipFilt(sigStartSampleClip:sigStopSampleClip);
     
     % isolate noise
-    noiseStartSample = sigStartSample - noiseDistSamples - nSamples;
-    noiseStopSample = sigStartSample - noiseDistSamples - 1;
-    xNoise = x(noiseStartSample:noiseStopSample);
+    xNoise = x(noiseStartSampleClip:noiseStopSampleClip);
 end
