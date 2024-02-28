@@ -6,8 +6,6 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
 % 2024-02-26
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
-% - Consider whether or not bandpass filtering should be implemented as an
-% option within this function
 % - Things I might do:
 %   -- combine sigStart and sigStop into a single variable (makes for less
 %   documentation and fewer input arguments
@@ -45,7 +43,7 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
     
     % get relative signal and noise samples
     sigStartSampleClip = clipBufferSamples + nSigSamples + noiseDistSamples + 1;
-    sigStopSampleClip = sigStartSampleClip + nSigSamples;
+    sigStopSampleClip = sigStartSampleClip + nSigSamples - 1;
     noiseStartSampleClip = sigStartSampleClip - noiseDistSamples - nSigSamples;
     noiseStopSampleClip = sigStartSampleClip - noiseDistSamples - 1;
     
