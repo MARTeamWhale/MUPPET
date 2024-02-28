@@ -108,12 +108,13 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     %%%
     %pass: signal clip and noise clip to calculateSNR.m
     %output: SNR
-    %PLA.SNR(i)  = snr.calculateSNR(xSignal, xNoise,Fs);
+    PLA.SNR(i)  = snr.calculateSNR(xSignal, xNoise,Fs);
     %%%
     end           
 end % end PAMLAB annotations loop
             
-%OUTPUT: filename RelativeStartTime Start90 End90 SNR
+%OUTPUT: filename RelativeStartTime Start90 End90 SNR %% APPENDED TO PAMLAB
+%TABLE
           
 
     
