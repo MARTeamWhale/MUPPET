@@ -16,6 +16,20 @@ close all
 PATH2INPUT = uigetdir('','SELECT FOLDER WITH PAMLAB OUTPUT');
 PAMLAB_ANNOTATIONS = dir(fullfile(PATH2INPUT, '**\*.csv'));
 PATH2DATA = uigetdir('','SELECT FOLDER WITH WAV FILES');
+PATH2OUTPUTDIRECTORY = uigetdir('','SELECT DIRECTORY TO CREATE OUTPUT FOLDER');
+
+if PATH2OUTPUTDIRECTORY == 0
+    temp1 = split(PATH2INPUT,'\');
+    temp2 = temp1(1:end-1)';
+    PATH2OUTPUTDIRECTORY = fullfile(strjoin(temp2,'\'));
+    clear(temp1,temp2)
+end
+
+PATH2OUTPUT = fullfile(PATH2OUTPUTDIRECTORY,'SNR_OUTPUT');
+if ~exist(PATH2OUTPUT, 'dir')
+   mkdir(PATH2OUTPUT)
+end
+
 
 %%% read in call type params: 
                          % Species x
@@ -138,7 +152,10 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
         %%%
         %pass: signal clip and noise clip to calculateSNR.m
         %output: SNR
-        %PLA.SNR(i)  = snr.calculateSNR(xSignal, xNoise,Fs);
+        temp_name = strjoin(temp(1:end-1)','.');
+        final_filename = [temp_name,'_SNR.csv'];
+        PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
+        writetable(PLA,PATH2OUTPUT_FILENAME);
         %%%
     end           
 end % end PAMLAB annotations loop
