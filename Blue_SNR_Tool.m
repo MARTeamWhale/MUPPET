@@ -5,7 +5,7 @@
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-02-27
+% 2024-03-01
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
@@ -55,11 +55,6 @@ ct_idx = listdlg('PromptString','Select a call type:',...
                   'ListString',calltypelist);
 calltype = calltypelist(ct_idx,1);
 SNR_PARAMS_filtered = SNR_PARAMS(strcmp(SNR_PARAMS.Species,string(species{1,1})) & strcmp(SNR_PARAMS.CallType,string(calltype{1,1})),:);
-
-%%% peek at first WAV file to get sampling rate
-audiofile1 = fullfile(PATH2DATA, strrep(PAMLAB_ANNOTATIONS(1).name,'.csv','.wav'));
-audiofile1_info = audioinfo(audiofile1);
-Fs = audiofile1_info.SampleRate;
 
 %%% extract variables from PARAMS table
 %Freq_band = [SNR_PARAMS_filtered.LowerFrequency SNR_PARAMS_filtered.UpperFrequency];
