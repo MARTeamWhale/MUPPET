@@ -3,8 +3,9 @@
 % Process Pamlab output for use in SNR tool.
 %
 %
-% Last updated by Mike Adams
-% 2024-02-09
+% Written by Mike Adams
+% Last updated by Wilfried Beslin
+% 2024-02-27
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
@@ -15,6 +16,20 @@ close all
 PATH2INPUT = uigetdir('','SELECT FOLDER WITH PAMLAB OUTPUT');
 PAMLAB_ANNOTATIONS = dir(fullfile(PATH2INPUT, '**\*.csv'));
 PATH2DATA = uigetdir('','SELECT FOLDER WITH WAV FILES');
+PATH2OUTPUTDIRECTORY = uigetdir('','SELECT DIRECTORY TO CREATE OUTPUT FOLDER');
+
+if PATH2OUTPUTDIRECTORY == 0
+    temp1 = split(PATH2INPUT,'\');
+    temp2 = temp1(1:end-1)';
+    PATH2OUTPUTDIRECTORY = fullfile(strjoin(temp2,'\'));
+    clear(temp1,temp2)
+end
+
+PATH2OUTPUT = fullfile(PATH2OUTPUTDIRECTORY,'SNR_OUTPUT');
+if ~exist(PATH2OUTPUT, 'dir')
+   mkdir(PATH2OUTPUT)
+end
+
 
 %%% read in call type params: 
                          % Species x
@@ -40,12 +55,22 @@ ct_idx = listdlg('PromptString','Select a call type:',...
                   'ListString',calltypelist);
 calltype = calltypelist(ct_idx,1);
 SNR_PARAMS_filtered = SNR_PARAMS(strcmp(SNR_PARAMS.Species,string(species{1,1})) & strcmp(SNR_PARAMS.CallType,string(calltype{1,1})),:);
-Freq_band = [SNR_PARAMS_filtered.LowerFrequency SNR_PARAMS_filtered.UpperFrequency];
+
+%%% peek at first WAV file to get sampling rate
+audiofile1 = fullfile(PATH2DATA, strrep(PAMLAB_ANNOTATIONS(1).name,'.csv','.wav'));
+audiofile1_info = audioinfo(audiofile1);
+Fs = audiofile1_info.SampleRate;
+
+%%% extract variables from PARAMS table
+%Freq_band = [SNR_PARAMS_filtered.LowerFrequency SNR_PARAMS_filtered.UpperFrequency];
 NoiseDistance = SNR_PARAMS_filtered.NoiseDistance; 
 BP_buffer = SNR_PARAMS_filtered.BP_Buffer;
 Units = string(SNR_PARAMS_filtered.Units);
-%%%
-%%%
+
+%%% create empty variable to store bandpass filter object
+bandpass_filter = [];
+
+%%% process each file
 for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     file = fullfile(PAMLAB_ANNOTATIONS(p).folder,PAMLAB_ANNOTATIONS(p).name);
     opts = detectImportOptions(file, 'NumHeaderLines',2, 'Delimiter',',');
@@ -66,50 +91,73 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
     t = dt*(0:M-1)';%get time index in seconds
     xt = [x t];
     
-    %%%
+    %%% create bandpass filter object if it doesn't exist already
+    if isempty(bandpass_filter) || Fs ~= bandpass_filter.SampleRate
+        bandpass_filter = designfilt(...
+            'bandpassfir',...
+            'StopbandFrequency1', SNR_PARAMS_filtered.LowerStopbandFrequency,...
+            'PassbandFrequency1', SNR_PARAMS_filtered.LowerPassbandFrequency,...
+            'PassbandFrequency2', SNR_PARAMS_filtered.UpperPassbandFrequency,...
+            'StopbandFrequency2', SNR_PARAMS_filtered.UpperStopbandFrequency,...
+            'StopbandAttenuation1', 60,...
+            'StopbandAttenuation2', 60,...
+            'PassbandRipple', 1,...
+            'DesignMethod', 'kaiserwin',...
+            'SampleRate', Fs...
+            );
+    end
     
     %%%  Loop through blue whale calls
     for i = 1:height(PLA)
-    %%% Get Start90 and End90 RelativeStartTime
-    %%% Transform Start90 and End90 with RelativeStartTime
-    
-    RelativeStartTime = PLA.RelativeStartTime(i);
-    if ~isa(RelativeStartTime,'double')
-         RelativeStartTime = str2double(PLA.RelativeStartTime(i));
-    end
-    
-    PLA_StartTime90 = PLA.StartTime90(i);
-    if ~isa(PLA_StartTime90,'double')
-        PLA_StartTime90 = str2double(PLA.StartTime90(i));
-    end
-    
-    PLA_StopTime90 = PLA.StopTime90(i);
-    if ~isa(PLA_StopTime90,'double')
-        PLA_StopTime90 = str2double(PLA.StopTime90(i));
-    end
-    
-    Start90 = PLA_StartTime90 + RelativeStartTime;
-    End90 = PLA_StopTime90 + RelativeStartTime;
-    
-    
-    %%%
-    %pass: raw wav,Start90, End90,[frequency band],buffer size,and noiseDistance to BP_clip.m
-    %output: bandpassed wav clip + buffer
-    %BP_clip = snr.BP_clip(x,Start90,End90,Freq_band,NoiseDistance,BP_buffer_samples);
-    %%%
-    %%%
-    %pass: start90, stop90, noiseDistance,and bandpassed wav clip + buffer to extractSN.m
-    %output: signal clip and noise clip
-    %Temporary function test:
-    [xSignal, xNoise] = snr.extractSN(x,Fs,Start90,End90,NoiseDistance,Units);
-    %[xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
-    %
-    %%%
-    %%%
-    %pass: signal clip and noise clip to calculateSNR.m
-    %output: SNR
-    PLA.SNR(i)  = snr.calculateSNR(xSignal, xNoise,Fs);
-    %%%
+        %%% Get Start90 and End90 RelativeStartTime
+        %%% Transform Start90 and End90 with RelativeStartTime
+
+        RelativeStartTime = PLA.RelativeStartTime(i);
+        if ~isa(RelativeStartTime,'double')
+             RelativeStartTime = str2double(PLA.RelativeStartTime(i));
+        end
+
+        PLA_StartTime90 = PLA.StartTime90(i);
+        if ~isa(PLA_StartTime90,'double')
+            PLA_StartTime90 = str2double(PLA.StartTime90(i));
+        end
+
+        PLA_StopTime90 = PLA.StopTime90(i);
+        if ~isa(PLA_StopTime90,'double')
+            PLA_StopTime90 = str2double(PLA.StopTime90(i));
+        end
+
+        Start90 = PLA_StartTime90 + RelativeStartTime;
+        End90 = PLA_StopTime90 + RelativeStartTime;
+        
+        %%% extract bandpass-filtered signal and noise samples
+        [xSignal, xNoise] = snr.extractSN(x, Fs, Start90, End90, NoiseDistance, BP_buffer, bandpass_filter, Units);
+        
+        %%% calculate SNR
+        PLA.SNR(i) = snr.calculateSNR(xSignal, xNoise, 'SubtractNoise',true);
+
+        %%%
+        %pass: raw wav,Start90, End90,[frequency band],buffer size,and noiseDistance to BP_clip.m
+        %output: bandpassed wav clip + buffer
+        %BP_clip = snr.BP_clip(x,Start90,End90,Freq_band,NoiseDistance,BP_buffer_samples);
+        %%%
+        %%%
+        %pass: start90, stop90, noiseDistance,and bandpassed wav clip + buffer to extractSN.m
+        %output: signal clip and noise clip
+        %Temporary function test:
+        %[xSignal, xNoise] = snr.extractSN(x,Fs,Start90,End90,NoiseDistance,Units);
+        %[xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
+        %
+        %%%
+        %%%
+        %pass: signal clip and noise clip to calculateSNR.m
+        %output: SNR
+        temp_name = strjoin(temp(1:end-1)','.');
+        final_filename = [temp_name,'_SNR.csv'];
+        PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
+        writetable(PLA,PATH2OUTPUT_FILENAME);
+        %%%
+
     end           
 end % end PAMLAB annotations loop
             
