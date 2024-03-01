@@ -157,10 +157,12 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
         writetable(PLA,PATH2OUTPUT_FILENAME);
         %%%
+
     end           
 end % end PAMLAB annotations loop
             
-%OUTPUT: filename RelativeStartTime Start90 End90 SNR
+%OUTPUT: filename RelativeStartTime Start90 End90 SNR %% APPENDED TO PAMLAB
+%TABLE
           
 
     
