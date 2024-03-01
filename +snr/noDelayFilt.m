@@ -8,6 +8,10 @@ function xFilt = noDelayFilt(dFilter, x)
 % Last updated by Wilfried Beslin
 % 2024-02-27
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% DEV NOTES
+% - consider supporting multichannel inputs (this would involve modifying
+% how the 'zeros' function is used, as well as the indexing operation for
+% subsetting xFilt)
 
     % get group delay
     gd = grpdelay(dFilter);
