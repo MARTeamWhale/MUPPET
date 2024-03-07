@@ -19,7 +19,7 @@ Initial development was focused on Blue Whale audible calls. The tool currently 
 The tool requires inputs to calculate the SNR values. These include:
   -  SNR_PARAMS.csv: a parameter file which contains the filtering and noise presets for each specie's call type. This file has values for:
       - Species - The species of interest (e.g. Blue Whale)
-      - Call Type - The call type (e.g. Tonal) 
+      - Call Type - The call type (e.g. Audible, Tonal, etc...) 
       - Lower Stopband Frequency - Frequency at the lower bound of the bandpass filter at which the desired attenuation level is reached (Hz). The closer this value is to the Lower Passband Frequency, the sharper the lower frequency cutoff will be, at the expense of increased filter order (and thus processing time). The attenuation level is currently 60 dB.
       - Lower Passband Frequency - Lower bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the lowest frequency of interest.
       - Upper Passband Frequency - Upper bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the highest frequency of interest.
