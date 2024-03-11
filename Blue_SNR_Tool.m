@@ -81,29 +81,27 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
     for w = 1:height(PLA) %Start rows loop
         temp = split(PLA.filename(w),'.');
         temp(end) = {'wav'};    
-        if isempty(x) %check if first time running
-           if ~strcmp(strjoin(temp, '.'), FileName)
-              FileName = strjoin(temp, '.');
-              [x,Fs] = audioread(fullfile(PATH2DATA,FileName));
-              [M,q] = size(x); %get size length of audio
-              dt = 1/Fs;      %time between samples in seconds
-              t = dt*(0:M-1)';%get time index in seconds
-              xt = [x t];       
+        if isempty(x)||~strcmp(strjoin(temp, '.'), FileName) %check if first time running
+           FileName = strjoin(temp, '.');
+           [x,Fs] = audioread(fullfile(PATH2DATA,FileName));
+           [M,q] = size(x); %get size length of audio
+           dt = 1/Fs;      %time between samples in seconds
+           t = dt*(0:M-1)';%get time index in seconds
+           xt = [x t];       
       %%% create bandpass filter object if it doesn't exist already
-               if isempty(bandpass_filter) || Fs ~= bandpass_filter.SampleRate
-                    bandpass_filter = designfilt(...
-                        'bandpassfir',...
-                        'StopbandFrequency1', SNR_PARAMS_filtered.LowerStopbandFrequency,...
-                        'PassbandFrequency1', SNR_PARAMS_filtered.LowerPassbandFrequency,...
-                        'PassbandFrequency2', SNR_PARAMS_filtered.UpperPassbandFrequency,...
-                        'StopbandFrequency2', SNR_PARAMS_filtered.UpperStopbandFrequency,...
-                        'StopbandAttenuation1', 60,...
-                        'StopbandAttenuation2', 60,...
-                        'PassbandRipple', 1,...
-                        'DesignMethod', 'kaiserwin',...
-                        'SampleRate', Fs...
-                        );
-               end
+           if isempty(bandpass_filter) || Fs ~= bandpass_filter.SampleRate
+              bandpass_filter = designfilt(...
+                    'bandpassfir',...
+                    'StopbandFrequency1', SNR_PARAMS_filtered.LowerStopbandFrequency,...
+                    'PassbandFrequency1', SNR_PARAMS_filtered.LowerPassbandFrequency,...
+                    'PassbandFrequency2', SNR_PARAMS_filtered.UpperPassbandFrequency,...
+                    'StopbandFrequency2', SNR_PARAMS_filtered.UpperStopbandFrequency,...
+                    'StopbandAttenuation1', 60,...
+                    'StopbandAttenuation2', 60,...
+                    'PassbandRipple', 1,...
+                    'DesignMethod', 'kaiserwin',...
+                    'SampleRate', Fs...
+                    );
            end    
        end
   
@@ -115,14 +113,14 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
              RelativeStartTime = str2double(PLA.RelativeStartTime(w));
         end
 
-        PLA_StartTime90 = PLA.StartTime90___9(w);
+        PLA_StartTime90 = PLA.StartTime90(w);
         if ~isa(PLA_StartTime90,'double')
-            PLA_StartTime90 = str2double(PLA.StartTime90___9(w));
+            PLA_StartTime90 = str2double(PLA.StartTime90(w));
         end
 
-        PLA_StopTime90 = PLA.StopTime90___10(w);
+        PLA_StopTime90 = PLA.StopTime90(w);
         if ~isa(PLA_StopTime90,'double')
-            PLA_StopTime90 = str2double(PLA.StopTime90___10(w));
+            PLA_StopTime90 = str2double(PLA.StopTime90(w));
         end
 
         Start90 = PLA_StartTime90 + RelativeStartTime;
@@ -156,7 +154,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
         final_filename = [char(temp_name(1)) '_SNR.csv'];
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
-        %writetable(PLA,PATH2OUTPUT_FILENAME);
+        writetable(PLA,PATH2OUTPUT_FILENAME);
 end % end PAMLAB annotations loop
             
 %OUTPUT: filename RelativeStartTime Start90 End90 SNR %% APPENDED TO PAMLAB
