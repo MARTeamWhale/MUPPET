@@ -14,7 +14,7 @@ close all
 
 %Get list of Pamlab Output csv and path to wav files
 PATH2INPUT = uigetdir('','SELECT FOLDER WITH PAMLAB OUTPUT');
-PAMLAB_ANNOTATIONS = dir(fullfile(PATH2INPUT, '**\*.csv'));
+PAMLAB_ANNOTATIONS = dir(fullfile(PATH2INPUT, '\*.csv'));
 PATH2DATA = uigetdir('','SELECT FOLDER WITH WAV FILES');
 PATH2OUTPUTDIRECTORY = uigetdir('','SELECT DIRECTORY TO CREATE OUTPUT FOLDER');
 
@@ -65,61 +65,62 @@ Units = string(SNR_PARAMS_filtered.Units);
 %%% create empty variable to store bandpass filter object
 bandpass_filter = [];
 
-%%% process each file
-for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
+%%% process each artefact file
+for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redundant...
     file = fullfile(PAMLAB_ANNOTATIONS(p).folder,PAMLAB_ANNOTATIONS(p).name);
-    opts = detectImportOptions(file, 'NumHeaderLines',2, 'Delimiter',',');
+    %opts = detectImportOptions(file, 'NumHeaderLines',2, 'Delimiter',',');
     %opts = detectImportOptions(file);
     %opts.VariableNamesLine = 3;
     %opts.Delimiter = ",";
-    
-    PLA = readtable(file,opts);
+    %PLA = readtable(file,opts);
+    PLA = readtable(file);
     PLA.SNR = NaN(height(PLA),1); %create location to save SNR
-    
-    %%% get wav file and read it in
-    temp = split(PAMLAB_ANNOTATIONS(p).name,'.');
-    temp(end) = {'wav'};
-    FileName = strjoin(temp, '.');
-    [x,Fs] = audioread(fullfile(PATH2DATA,FileName));
-    [M,q] = size(x); %get size length of audio
-    dt = 1/Fs;      %time between samples in seconds
-    t = dt*(0:M-1)';%get time index in seconds
-    xt = [x t];
-    
-    %%% create bandpass filter object if it doesn't exist already
-    if isempty(bandpass_filter) || Fs ~= bandpass_filter.SampleRate
-        bandpass_filter = designfilt(...
-            'bandpassfir',...
-            'StopbandFrequency1', SNR_PARAMS_filtered.LowerStopbandFrequency,...
-            'PassbandFrequency1', SNR_PARAMS_filtered.LowerPassbandFrequency,...
-            'PassbandFrequency2', SNR_PARAMS_filtered.UpperPassbandFrequency,...
-            'StopbandFrequency2', SNR_PARAMS_filtered.UpperStopbandFrequency,...
-            'StopbandAttenuation1', 60,...
-            'StopbandAttenuation2', 60,...
-            'PassbandRipple', 1,...
-            'DesignMethod', 'kaiserwin',...
-            'SampleRate', Fs...
-            );
-    end
-    
-    %%%  Loop through blue whale calls
-    for i = 1:height(PLA)
-        %%% Get Start90 and End90 RelativeStartTime
-        %%% Transform Start90 and End90 with RelativeStartTime
+    x = [];
+    FileName =[];
+    %%% get wav file and read it in 
+    for w = 1:height(PLA) %Start rows loop
+        temp = split(PLA.filename(w),'.');
+        temp(end) = {'wav'};    
+        if isempty(x)||~strcmp(strjoin(temp, '.'), FileName) %check if first time running
+           FileName = strjoin(temp, '.');
+           [x,Fs] = audioread(fullfile(PATH2DATA,FileName));
+           [M,q] = size(x); %get size length of audio
+           dt = 1/Fs;      %time between samples in seconds
+           t = dt*(0:M-1)';%get time index in seconds
+           xt = [x t];       
+      %%% create bandpass filter object if it doesn't exist already
+           if isempty(bandpass_filter) || Fs ~= bandpass_filter.SampleRate
+              bandpass_filter = designfilt(...
+                    'bandpassfir',...
+                    'StopbandFrequency1', SNR_PARAMS_filtered.LowerStopbandFrequency,...
+                    'PassbandFrequency1', SNR_PARAMS_filtered.LowerPassbandFrequency,...
+                    'PassbandFrequency2', SNR_PARAMS_filtered.UpperPassbandFrequency,...
+                    'StopbandFrequency2', SNR_PARAMS_filtered.UpperStopbandFrequency,...
+                    'StopbandAttenuation1', 60,...
+                    'StopbandAttenuation2', 60,...
+                    'PassbandRipple', 1,...
+                    'DesignMethod', 'kaiserwin',...
+                    'SampleRate', Fs...
+                    );
+           end    
+       end
+  
+       %%% Get Start90 and End90 RelativeStartTime
+       %%% Transform Start90 and End90 with RelativeStartTime
 
-        RelativeStartTime = PLA.RelativeStartTime(i);
-        if ~isa(RelativeStartTime,'double')
-             RelativeStartTime = str2double(PLA.RelativeStartTime(i));
+       RelativeStartTime = PLA.RelativeStartTime(w);
+       if ~isa(RelativeStartTime,'double')
+             RelativeStartTime = str2double(PLA.RelativeStartTime(w));
         end
 
-        PLA_StartTime90 = PLA.StartTime90(i);
+        PLA_StartTime90 = PLA.StartTime90(w);
         if ~isa(PLA_StartTime90,'double')
-            PLA_StartTime90 = str2double(PLA.StartTime90(i));
+            PLA_StartTime90 = str2double(PLA.StartTime90(w));
         end
 
-        PLA_StopTime90 = PLA.StopTime90(i);
+        PLA_StopTime90 = PLA.StopTime90(w);
         if ~isa(PLA_StopTime90,'double')
-            PLA_StopTime90 = str2double(PLA.StopTime90(i));
+            PLA_StopTime90 = str2double(PLA.StopTime90(w));
         end
 
         Start90 = PLA_StartTime90 + RelativeStartTime;
@@ -129,7 +130,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
         [xSignal, xNoise] = snr.extractSN(x, Fs, Start90, End90, NoiseDistance, BP_buffer, bandpass_filter, Units);
         
         %%% calculate SNR
-        PLA.SNR(i) = snr.calculateSNR(xSignal, xNoise, 'SubtractNoise',true);
+        PLA.SNR(w) = snr.calculateSNR(xSignal, xNoise, 'SubtractNoise',true);
 
         %%%
         %pass: raw wav,Start90, End90,[frequency band],buffer size,and noiseDistance to BP_clip.m
@@ -147,13 +148,13 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop)
         %%%
         %pass: signal clip and noise clip to calculateSNR.m
         %output: SNR
-        temp_name = strjoin(temp(1:end-1)','.');
-        final_filename = [temp_name,'_SNR.csv'];
+
+        %%%
+    end %call loop
+        temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
+        final_filename = [char(temp_name(1)) '_SNR.csv'];
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
         writetable(PLA,PATH2OUTPUT_FILENAME);
-        %%%
-
-    end           
 end % end PAMLAB annotations loop
             
 %OUTPUT: filename RelativeStartTime Start90 End90 SNR %% APPENDED TO PAMLAB
