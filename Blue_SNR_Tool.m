@@ -75,22 +75,22 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
     %PLA = readtable(file,opts);
     PLA = readtable(file);
     PLA.SNR = NaN(height(PLA),1); %create location to save SNR
-    PLA.SNR_Adjusted = NaN(height(PLA),1); %create location to save SNR with noise power subtracted from nominator
+    PLA.SNR_Adjusted = NaN(height(PLA),1); %create location to save SNR with noise power subtracted from numerator
     x = [];
     FileName =[];
     
     %%% initialize waitbar
-    num_artefacts = height(PLA);
+    num_annotations = height(PLA);
     waitmsg = 'Processing PAMlab annotations...';
     waitfig = waitbar(0, waitmsg);
     tic
     
     %%% get wav file and read it in 
-    for w = 1:num_artefacts %Start rows loop
+    for w = 1:num_annotations %Start rows loop
         %%% update waitbar
         t_elapsed = toc;
-        t_rem = t_elapsed.*((num_artefacts-(w-1))/(w-1));
-        waitbar(w/num_artefacts, waitfig, sprintf('%s\nEstimated time remaining: %s', waitmsg, duration(0,0,t_rem)))
+        t_rem = t_elapsed.*((num_annotations-(w-1))/(w-1));
+        waitbar(w/num_annotations, waitfig, sprintf('%s\nEstimated time remaining: %s', waitmsg, duration(0,0,t_rem)))
         
         %%% process 
         temp = split(PLA.filename(w),'.');
