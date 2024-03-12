@@ -5,7 +5,7 @@
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-03-01
+% 2024-03-12
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
@@ -129,8 +129,12 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         %%% extract bandpass-filtered signal and noise samples
         [xSignal, xNoise] = snr.extractSN(x, Fs, Start90, End90, NoiseDistance, BP_buffer, bandpass_filter, Units);
         
-        %%% calculate SNR
-        PLA.SNR(w) = snr.calculateSNR(xSignal, xNoise, 'SubtractNoise',true);
+        %%% calculate SNR 
+        %%% (leave NaN if not possible because signal is too close to 
+        %%% endpoints)
+        if ~isempty(xSignal)
+            PLA.SNR(w) = snr.calculateSNR(xSignal, xNoise, 'SubtractNoise',true);
+        end
 
         %%%
         %pass: raw wav,Start90, End90,[frequency band],buffer size,and noiseDistance to BP_clip.m
