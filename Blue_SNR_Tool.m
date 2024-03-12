@@ -77,8 +77,21 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
     PLA.SNR = NaN(height(PLA),1); %create location to save SNR
     x = [];
     FileName =[];
+    
+    %%% initialize waitbar
+    num_artefacts = height(PLA);
+    waitmsg = 'Processing PAMlab annotations...';
+    waitfig = waitbar(0, waitmsg);
+    tic
+    
     %%% get wav file and read it in 
-    for w = 1:height(PLA) %Start rows loop
+    for w = 1:num_artefacts %Start rows loop
+        %%% update waitbar
+        t_elapsed = toc;
+        t_rem = t_elapsed.*((num_artefacts-(w-1))/(w-1));
+        waitbar(w/num_artefacts, waitfig, sprintf('%s\nEstimated time remaining: %s', waitmsg, duration(0,0,t_rem)))
+        
+        %%% process 
         temp = split(PLA.filename(w),'.');
         temp(end) = {'wav'};    
         if isempty(x)||~strcmp(strjoin(temp, '.'), FileName) %check if first time running
@@ -155,6 +168,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
 
         %%%
     end %call loop
+    close(waitfig)
         temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
         final_filename = [char(temp_name(1)) '_SNR.csv'];
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
