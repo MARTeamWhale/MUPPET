@@ -75,6 +75,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
     %PLA = readtable(file,opts);
     PLA = readtable(file);
     PLA.SNR = NaN(height(PLA),1); %create location to save SNR
+    PLA.SNR_Adjusted = NaN(height(PLA),1); %create location to save SNR with noise power subtracted from nominator
     x = [];
     FileName =[];
     
@@ -146,7 +147,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         %%% (leave NaN if not possible because signal is too close to 
         %%% endpoints)
         if ~isempty(xSignal)
-            PLA.SNR(w) = snr.calculateSNR(xSignal, xNoise, 'SubtractNoise',true);
+            [PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise);
         end
 
         %%%

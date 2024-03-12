@@ -1,4 +1,4 @@
-function snr_dB = calculateSNR(xSigWin, xNoiseWin, varargin)
+function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin, varargin)
 % Calculate signal-to-noise ratio, given pre-isolated windows of signal and
 % noise.
 %
@@ -7,13 +7,21 @@ function snr_dB = calculateSNR(xSigWin, xNoiseWin, varargin)
 % samples may be different between signal and noise windows, but the number
 % of channels must be identical.
 %
-% If xSigWin represents a signal + noise mixture (almost always the case),
-% the optional parameter 'SubtractNoise' may be set to true to get a more
-% accurate measure of signal-to-noise ratio.
+% The first output is the base SNR equation, that is:
+%   SNR = powSig/powNoise
+% where powSig and powNoise are the average power of the signal and noise
+% windoes, respectively.
+%
+% The second output subtracts the estimated noise power from the numerator,
+% that is:
+%   SNR_Adjusted = (powSig - powNoise)/powNoise
+% This representation of SNR is more true to the real definition of SNR
+% when the "signal" window actually contains a signal + noise mixture,
+% which is almost always the case.
 %
 %
 % Last updated by Wilfried Beslin
-% 2024-02-27
+% 2024-03-12
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -22,10 +30,10 @@ function snr_dB = calculateSNR(xSigWin, xNoiseWin, varargin)
     p.addRequired('xSigWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
     p.addRequired('xNoiseWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
     %p.addRequired('fs', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
-    p.addParameter('SubtractNoise', false, @(val)validateattributes(val,{'logical'},{'scalar'}))
+    %p.addParameter('SubtractNoise', false, @(val)validateattributes(val,{'logical'},{'scalar'}))
     %p.parse(xSigWin, xNoiseWin, fs, varargin{:});
     p.parse(xSigWin, xNoiseWin, varargin{:});
-    subtractNoise = p.Results.SubtractNoise;
+    %subtractNoise = p.Results.SubtractNoise;
     
     assert(size(xSigWin,2) == size(xNoiseWin,2), 'Signal and noise windows must have the same number of channels!')
     
@@ -52,10 +60,14 @@ function snr_dB = calculateSNR(xSigWin, xNoiseWin, varargin)
     %}
     
     % calculate SNR
+    snr_dB = 10*log10(pSigWin./pNoiseWin);
+    snr_adjusted_dB = 10*log10((pSigWin - pNoiseWin)./pNoiseWin);
+    %{
     if subtractNoise
         snr_linear = (pSigWin - pNoiseWin)./pNoiseWin;
     else
         snr_linear = pSigWin./pNoiseWin;
     end
     snr_dB = 10*log10(snr_linear);
+    %}
 end
