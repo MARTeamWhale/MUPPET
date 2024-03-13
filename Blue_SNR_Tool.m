@@ -181,7 +181,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
         final_filename = [char(temp_name(1)) '_SNR.csv'];
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
-        %writetable(PLA,PATH2OUTPUT_FILENAME);
+        writetable(PLA,PATH2OUTPUT_FILENAME);
 end % end PAMLAB annotations loop
             
 %OUTPUT: filename RelativeStartTime Start90 End90 SNR %% APPENDED TO PAMLAB
