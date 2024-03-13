@@ -1,4 +1,4 @@
-% Blue_SNR_Tool.m
+% Baleen_SNR_Tool.m
 %
 % Process Pamlab output for use in SNR tool.
 %
@@ -16,6 +16,7 @@ close all
 PATH2INPUT = uigetdir('','SELECT FOLDER WITH PAMLAB OUTPUT');
 PAMLAB_ANNOTATIONS = dir(fullfile(PATH2INPUT, '\*.csv'));
 PATH2DATA = uigetdir('','SELECT FOLDER WITH WAV FILES');
+WAVFILES = struct2table(dir(fullfile(PATH2DATA, '**\*.wav')));
 PATH2OUTPUTDIRECTORY = uigetdir('','SELECT DIRECTORY TO CREATE OUTPUT FOLDER');
 
 if PATH2OUTPUTDIRECTORY == 0
@@ -93,11 +94,18 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         waitbar(w/num_annotations, waitfig, sprintf('%s\nEstimated time remaining: %s', waitmsg, duration(0,0,t_rem)))
         
         %%% process 
+        
         temp = split(PLA.filename(w),'.');
         temp(end) = {'wav'};    
         if isempty(x)||~strcmp(strjoin(temp, '.'), FileName) %check if first time running
            FileName = strjoin(temp, '.');
-           [x,Fs] = audioread(fullfile(PATH2DATA,FileName));
+           for i = 1:length(WAVFILES.name)
+                if contains(WAVFILES.name(i), FileName)
+                   PATH2WAV = char(fullfile(WAVFILES.folder(i),WAVFILES.name(i)));
+                   continue
+                end
+           end
+           [x,Fs] = audioread(PATH2WAV);
            [M,q] = size(x); %get size length of audio
            dt = 1/Fs;      %time between samples in seconds
            t = dt*(0:M-1)';%get time index in seconds
@@ -171,13 +179,62 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
     end %call loop
     close(waitfig)
         temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
-        final_filename = [char(temp_name(1)) '_SNR.csv'];
+        temp_filename = [char(temp_name(1)) '_SNR.csv'];
+        final_filename = generateUniqueName(PATH2OUTPUT,temp_filename);
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
         writetable(PLA,PATH2OUTPUT_FILENAME);
 end % end PAMLAB annotations loop
             
-%OUTPUT: filename RelativeStartTime Start90 End90 SNR %% APPENDED TO PAMLAB
-%TABLE
+%% generateUniqueName
+function newFileName = generateUniqueName(dirPath, fileName)
+%
+% Checks if a file in a directory exists, and proposes a unique alternative
+% filename if it does. Use this when you want to avoid overwriting files or
+% folders that may already exist. The new proposed names consist of the
+% original plus a unique (incremental) integer appended at the end,
+% starting with 2.
+% 
+% If the input file name does not yet exist, this function will return the
+% original name.
+%
+%
+% Written by Wilfried Beslin
+% Last updated 2024-01-10, using MATLAB R2018b
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Some possible options here:
+% - Allow zero padding
+% - Choose whether or not to force an integer for names that are NOT taken
+% - Choose which number to start with
+% - specify a delimiter string (default is underscore)
+% - Maybe: support letters rather than numbers
+
+    % get full path
+    filePath = fullfile(dirPath,fileName);
+
+    % check if file already exists
+    if logical(exist(filePath,'file')) % also includes folders
+        
+        % if so, generate unique name
+        [~,fileNameBase,fileExt] = fileparts(fileName);
+        fileNum = 2;
+        haveUnique = false;
+        while ~haveUnique
+            newFileName = [fileNameBase,'_',num2str(fileNum),fileExt];
+            newFilePath = fullfile(dirPath,newFileName);
+            if logical(exist(newFilePath,'file'))
+                fileNum = fileNum + 1;
+            else
+                haveUnique = true;
+            end
+        end
+        
+    else
+        % if file doesn't exist, then keep old name
+        newFileName = fileName;
+    end
+
+end
           
 
     
