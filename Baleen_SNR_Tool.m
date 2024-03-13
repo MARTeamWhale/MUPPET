@@ -1,4 +1,4 @@
-% Blue_SNR_Tool.m
+% Baleen_SNR_Tool.m
 %
 % Process Pamlab output for use in SNR tool.
 %
