@@ -16,6 +16,7 @@ close all
 PATH2INPUT = uigetdir('','SELECT FOLDER WITH PAMLAB OUTPUT');
 PAMLAB_ANNOTATIONS = dir(fullfile(PATH2INPUT, '\*.csv'));
 PATH2DATA = uigetdir('','SELECT FOLDER WITH WAV FILES');
+WAVFILES = struct2table(dir(fullfile(PATH2DATA, '**\*.wav')));
 PATH2OUTPUTDIRECTORY = uigetdir('','SELECT DIRECTORY TO CREATE OUTPUT FOLDER');
 
 if PATH2OUTPUTDIRECTORY == 0
@@ -93,11 +94,18 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         waitbar(w/num_annotations, waitfig, sprintf('%s\nEstimated time remaining: %s', waitmsg, duration(0,0,t_rem)))
         
         %%% process 
+        
         temp = split(PLA.filename(w),'.');
         temp(end) = {'wav'};    
         if isempty(x)||~strcmp(strjoin(temp, '.'), FileName) %check if first time running
            FileName = strjoin(temp, '.');
-           [x,Fs] = audioread(fullfile(PATH2DATA,FileName));
+           for i = 1:length(WAVFILES.name)
+                if contains(WAVFILES.name(i), FileName)
+                   PATH2WAV = char(fullfile(WAVFILES.folder(i),WAVFILES.name(i)));
+                   continue
+                end
+           end
+           [x,Fs] = audioread(PATH2WAV);
            [M,q] = size(x); %get size length of audio
            dt = 1/Fs;      %time between samples in seconds
            t = dt*(0:M-1)';%get time index in seconds
@@ -173,7 +181,7 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
         final_filename = [char(temp_name(1)) '_SNR.csv'];
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
-        writetable(PLA,PATH2OUTPUT_FILENAME);
+        %writetable(PLA,PATH2OUTPUT_FILENAME);
 end % end PAMLAB annotations loop
             
 %OUTPUT: filename RelativeStartTime Start90 End90 SNR %% APPENDED TO PAMLAB
