@@ -179,13 +179,62 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
     end %call loop
     close(waitfig)
         temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
-        final_filename = [char(temp_name(1)) '_SNR.csv'];
+        temp_filename = [char(temp_name(1)) '_SNR.csv'];
+        final_filename = generateUniqueName(PATH2OUTPUT,temp_filename);
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
         writetable(PLA,PATH2OUTPUT_FILENAME);
 end % end PAMLAB annotations loop
             
-%OUTPUT: filename RelativeStartTime Start90 End90 SNR %% APPENDED TO PAMLAB
-%TABLE
+%% generateUniqueName
+function newFileName = generateUniqueName(dirPath, fileName)
+%
+% Checks if a file in a directory exists, and proposes a unique alternative
+% filename if it does. Use this when you want to avoid overwriting files or
+% folders that may already exist. The new proposed names consist of the
+% original plus a unique (incremental) integer appended at the end,
+% starting with 2.
+% 
+% If the input file name does not yet exist, this function will return the
+% original name.
+%
+%
+% Written by Wilfried Beslin
+% Last updated 2024-01-10, using MATLAB R2018b
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Some possible options here:
+% - Allow zero padding
+% - Choose whether or not to force an integer for names that are NOT taken
+% - Choose which number to start with
+% - specify a delimiter string (default is underscore)
+% - Maybe: support letters rather than numbers
+
+    % get full path
+    filePath = fullfile(dirPath,fileName);
+
+    % check if file already exists
+    if logical(exist(filePath,'file')) % also includes folders
+        
+        % if so, generate unique name
+        [~,fileNameBase,fileExt] = fileparts(fileName);
+        fileNum = 2;
+        haveUnique = false;
+        while ~haveUnique
+            newFileName = [fileNameBase,'_',num2str(fileNum),fileExt];
+            newFilePath = fullfile(dirPath,newFileName);
+            if logical(exist(newFilePath,'file'))
+                fileNum = fileNum + 1;
+            else
+                haveUnique = true;
+            end
+        end
+        
+    else
+        % if file doesn't exist, then keep old name
+        newFileName = fileName;
+    end
+
+end
           
 
     
