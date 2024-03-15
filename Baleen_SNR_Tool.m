@@ -95,15 +95,19 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         
         %%% process 
         
-        temp = split(PLA.filename(w),'.');
-        temp(end) = {'wav'};    
-        if isempty(x)||~strcmp(strjoin(temp, '.'), FileName) %check if first time running
-           FileName = strjoin(temp, '.');
+        temp = PLA.filename(w);
+            
+        if isempty(x)||~strcmp(temp, FileName) %check if first time running
+           FileName = temp;
            for i = 1:length(WAVFILES.name)
                 if contains(WAVFILES.name(i), FileName)
                    PATH2WAV = char(fullfile(WAVFILES.folder(i),WAVFILES.name(i)));
                    continue
                 end
+           end
+           if ~exist('PATH2WAV','var')
+              disp("File not found in directory") 
+              return
            end
            [x,Fs] = audioread(PATH2WAV);
            [M,q] = size(x); %get size length of audio
@@ -130,19 +134,19 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
        %%% Get Start90 and End90 RelativeStartTime
        %%% Transform Start90 and End90 with RelativeStartTime
 
-       RelativeStartTime = PLA.RelativeStartTime(w);
+       RelativeStartTime = PLA.annotation_relative_start_time_sec(w);
        if ~isa(RelativeStartTime,'double')
-             RelativeStartTime = str2double(PLA.RelativeStartTime(w));
+             RelativeStartTime = str2double(PLA.annotation_relative_start_time_sec(w));
         end
 
-        PLA_StartTime90 = PLA.StartTime90(w);
+        PLA_StartTime90 = PLA.start_time90_s(w);
         if ~isa(PLA_StartTime90,'double')
-            PLA_StartTime90 = str2double(PLA.StartTime90(w));
+            PLA_StartTime90 = str2double(PLA.start_time90_s(w));
         end
 
-        PLA_StopTime90 = PLA.StopTime90(w);
+        PLA_StopTime90 = PLA.stop_time90_s(w);
         if ~isa(PLA_StopTime90,'double')
-            PLA_StopTime90 = str2double(PLA.StopTime90(w));
+            PLA_StopTime90 = str2double(PLA.stop_time90_s(w));
         end
 
         Start90 = PLA_StartTime90 + RelativeStartTime;
