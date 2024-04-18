@@ -2,8 +2,8 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
 % Isolate signal and associated noise samples from a larger audio time
 % series vector, given a pre-determined signal location.
 %
-% Last updated by Wilfried Beslin
-% 2024-03-12
+% Last updated by Mike Adams
+% 2024-04-18
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
 % - Things I might do:
@@ -14,6 +14,7 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
 
     
     import snr.noDelayFilt
+    import energy.calcEng
 
     % get sigStart, sigStop, and noiseDist as samples, based on "units"
     switch units
@@ -26,6 +27,10 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
     end
     sigStartSample = samplesFromInput(sigStart);
     sigStopSample = samplesFromInput(sigStop);
+    sigx = x(sigStartSample:sigStopSample);
+    [Start, Stop] = calcEng(sigx,90); 
+    %%% Pick it up here
+    
     noiseDistSamples = samplesFromInput(noiseDist);
     clipBufferSamples = samplesFromInput(clipBufferSize);
     

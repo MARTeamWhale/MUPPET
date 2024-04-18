@@ -131,29 +131,30 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
            end    
        end
   
-       %%% Get Start90 and End90 RelativeStartTime
-       %%% Transform Start90 and End90 with RelativeStartTime
+       %%% Get Start of annotation and End of annotation
+       PLA_Start = PLA.annotation_relative_start_time_sec(w);
+       PLA_Stop = PLA.annotation_relative_end_time_sec(w);
+        
+       %RelativeStartTime = PLA.annotation_relative_start_time_sec(w);
+       %if ~isa(RelativeStartTime,'double')
+       %      RelativeStartTime = str2double(PLA.annotation_relative_start_time_sec(w));
+       % end
 
-       RelativeStartTime = PLA.annotation_relative_start_time_sec(w);
-       if ~isa(RelativeStartTime,'double')
-             RelativeStartTime = str2double(PLA.annotation_relative_start_time_sec(w));
-        end
+       % PLA_StartTime90 = PLA.start_time90_s(w);
+       % if ~isa(PLA_StartTime90,'double')
+       %     PLA_StartTime90 = str2double(PLA.start_time90_s(w));
+       % end
 
-        PLA_StartTime90 = PLA.start_time90_s(w);
-        if ~isa(PLA_StartTime90,'double')
-            PLA_StartTime90 = str2double(PLA.start_time90_s(w));
-        end
+       % PLA_StopTime90 = PLA.stop_time90_s(w);
+       % if ~isa(PLA_StopTime90,'double')
+       %     PLA_StopTime90 = str2double(PLA.stop_time90_s(w));
+       % end
 
-        PLA_StopTime90 = PLA.stop_time90_s(w);
-        if ~isa(PLA_StopTime90,'double')
-            PLA_StopTime90 = str2double(PLA.stop_time90_s(w));
-        end
-
-        Start90 = PLA_StartTime90 + RelativeStartTime;
-        End90 = PLA_StopTime90 + RelativeStartTime;
+       % Start90 = PLA_StartTime90 + RelativeStartTime;
+       % End90 = PLA_StopTime90 + RelativeStartTime;
         
         %%% extract bandpass-filtered signal and noise samples
-        [xSignal, xNoise] = snr.extractSN(x, Fs, Start90, End90, NoiseDistance, BP_buffer, bandpass_filter, Units);
+        [xSignal, xNoise] = snr.extractSN(x, Fs, PLA_Start, PLA_Stop, NoiseDistance, BP_buffer, bandpass_filter, Units);
         
         %%% calculate SNR 
         %%% (leave NaN if not possible because signal is too close to 

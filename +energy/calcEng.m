@@ -30,7 +30,7 @@ A = repmat(C,[1 length(V)]);
 FreqPing05 = C(closestIndex); 
 %%%
             
-Stop90 = find(cum_FreqPing == FreqPing95);
-Start90 = find(cum_FreqPing == FreqPing05);
+Stop = find(cum_FreqPing == FreqPing95);
+Start = find(cum_FreqPing == FreqPing05);
 
            
