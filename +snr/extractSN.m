@@ -28,20 +28,21 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
     sigStartSample = samplesFromInput(sigStart);
     sigStopSample = samplesFromInput(sigStop);
     sigx = x(sigStartSample:sigStopSample);
-    [Start, Stop] = calcEng(sigx,90); 
-    %%% Pick it up here
+    [Start90, Stop90] = calcEng(sigx,90); 
+    sig90StartSample = sigStartSample + Start90;
+    sig90StopSample = sigStartSample + Stop90;
     
     noiseDistSamples = samplesFromInput(noiseDist);
     clipBufferSamples = samplesFromInput(clipBufferSize);
     
     % get signal and noise size
-    nSigSamples = sigStopSample - sigStartSample + 1;
+    nSigSamples = sig90StopSample - sig90StartSample + 1;
     
     % generate shorter clip (easier to filter)
     %%% if it's not possible to generate the clip (i.e., because the signal
     %%% is too close to the beginning of the sequence), then return empties
-    clipStartSample = sigStartSample - noiseDistSamples - nSigSamples - clipBufferSamples;
-    clipStopSample = sigStopSample + clipBufferSamples;
+    clipStartSample = sig90StartSample - noiseDistSamples - nSigSamples - clipBufferSamples;
+    clipStopSample = sig90StopSample + clipBufferSamples;
     
     if clipStartSample > 0 && clipStopSample <= numel(x)
         xClip = x(clipStartSample:clipStopSample);
