@@ -28,7 +28,8 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
     sigStartSample = samplesFromInput(sigStart);
     sigStopSample = samplesFromInput(sigStop);
     sigx = x(sigStartSample:sigStopSample);
-    [Start90, Stop90] = calcEng(sigx,90); 
+    sigxFilt = noDelayFilt(dFilter, sigx);
+    [Start90, Stop90] = calcEng(sigxFilt,90); 
     sig90StartSample = sigStartSample + Start90;
     sig90StopSample = sigStartSample + Stop90;
     
