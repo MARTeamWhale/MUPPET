@@ -3,7 +3,7 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
 % series vector, given a pre-determined signal location.
 %
 % Last updated by Mike Adams
-% 2024-04-18
+% 2024-04-22
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
 % - Things I might do:
@@ -11,6 +11,9 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
 %   documentation and fewer input arguments
 %   -- add input parsing with inputParser
 %   -- add noise range as an output argument (in samples)
+% - Additional thing to consider
+%   -- exporting 90% energy 
+%   -- add parameter to set cumulative energy thresehold
 
     
     import snr.noDelayFilt
