@@ -30,41 +30,43 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
     end
     sigStartSample = samplesFromInput(sigStart);
     sigStopSample = samplesFromInput(sigStop);
-    sigx = x(sigStartSample:sigStopSample);
-    sigxFilt = noDelayFilt(dFilter, sigx);
-    [Start90, Stop90] = calcEng(sigxFilt,90); 
-    sig90StartSample = sigStartSample + Start90;
-    sig90StopSample = sigStartSample + Stop90;
-    
+   % get SNR params
     noiseDistSamples = samplesFromInput(noiseDist);
     clipBufferSamples = samplesFromInput(clipBufferSize);
     
-    % get signal and noise size
-    nSigSamples = sig90StopSample - sig90StartSample + 1;
+    % get unclipped signal and noise size
+    nSigSamples = sigStopSample - sigStartSample + 1;
     
     % generate shorter clip (easier to filter)
     %%% if it's not possible to generate the clip (i.e., because the signal
     %%% is too close to the beginning of the sequence), then return empties
-    clipStartSample = sig90StartSample - noiseDistSamples - nSigSamples - clipBufferSamples;
-    clipStopSample = sig90StopSample + clipBufferSamples;
+    clipStartSample = sigStartSample - noiseDistSamples - nSigSamples - clipBufferSamples;
+    clipStopSample = sigStopSample + clipBufferSamples;
     
     if clipStartSample > 0 && clipStopSample <= numel(x)
         xClip = x(clipStartSample:clipStopSample);
 
-        % get relative signal and noise samples
+        % get relative signal
         sigStartSampleClip = clipBufferSamples + nSigSamples + noiseDistSamples + 1;
         sigStopSampleClip = sigStartSampleClip + nSigSamples - 1;
-        noiseStartSampleClip = sigStartSampleClip - noiseDistSamples - nSigSamples;
-        noiseStopSampleClip = sigStartSampleClip - noiseDistSamples - 1;
 
         % apply digital filter
         xClipFilt = noDelayFilt(dFilter, xClip);
 
-        % isolate signal
-        xSignal = xClipFilt(sigStartSampleClip:sigStopSampleClip);
-
+        % isolate 90% energy signal
+        xSigClip = xClipFilt(sigStartSampleClip:sigStopSampleClip);
+        [Start90, Stop90] = calcEng(xSigClip,90);
+        xSigStart90 = clipStartSample + sigStartSampleClip + Start90;
+        xSigStop90 = clipStartSample + sigStartSampleClip + Stop90;
+        xSignal = xSigClip(Start90:Stop90);
+       
+        %get realtive noise
+        nSig90Samples = length(xSignal);
+        noiseStartSampleClip = sigStartSampleClip - noiseDistSamples - nSig90Samples;
+        noiseStopSampleClip = sigStartSampleClip - noiseDistSamples - 1;
+        
         % isolate noise
-        xNoise = xClipFilt(noiseStartSampleClip:noiseStopSampleClip);
+         xNoise = xClipFilt(noiseStartSampleClip:noiseStopSampleClip);
 
         %** DEBUG PLOT
         %{
