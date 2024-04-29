@@ -17,7 +17,7 @@ function [xSignal, xNoise] = extractSN(x, fs, sigStart, sigStop, noiseDist, clip
 
     
     import snr.noDelayFilt
-    import energy.calcEng
+    import snr.calcEng
 
     % get sigStart, sigStop, and noiseDist as samples, based on "units"
     switch units
