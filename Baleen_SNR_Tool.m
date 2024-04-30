@@ -69,11 +69,6 @@ bandpass_filter = [];
 %%% process each artefact file
 for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redundant...
     file = fullfile(PAMLAB_ANNOTATIONS(p).folder,PAMLAB_ANNOTATIONS(p).name);
-    %opts = detectImportOptions(file, 'NumHeaderLines',2, 'Delimiter',',');
-    %opts = detectImportOptions(file);
-    %opts.VariableNamesLine = 3;
-    %opts.Delimiter = ",";
-    %PLA = readtable(file,opts);
     PLA = readtable(file);
     PLA.SNR = NaN(height(PLA),1); %create location to save SNR
     PLA.SNR_Adjusted = NaN(height(PLA),1); %create location to save SNR with noise power subtracted from numerator
@@ -135,21 +130,6 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
        PLA_Start = PLA.annotation_relative_start_time_sec(w);
        PLA_Stop = PLA.annotation_relative_end_time_sec(w);
         
-       %RelativeStartTime = PLA.annotation_relative_start_time_sec(w);
-       %if ~isa(RelativeStartTime,'double')
-       %      RelativeStartTime = str2double(PLA.annotation_relative_start_time_sec(w));
-       % end
-
-       % PLA_StartTime90 = PLA.start_time90_s(w);
-       % if ~isa(PLA_StartTime90,'double')
-       %     PLA_StartTime90 = str2double(PLA.start_time90_s(w));
-       % end
-
-       % PLA_StopTime90 = PLA.stop_time90_s(w);
-       % if ~isa(PLA_StopTime90,'double')
-       %     PLA_StopTime90 = str2double(PLA.stop_time90_s(w));
-       % end
-
        % Start90 = PLA_StartTime90 + RelativeStartTime;
        % End90 = PLA_StopTime90 + RelativeStartTime;
         
