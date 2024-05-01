@@ -4,8 +4,8 @@
 %
 %
 % Written by Mike Adams
-% Last updated by Mike Adams
-% 2024-03-14
+% Last updated by Wilfried Beslin
+% 2024-05-01
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
@@ -81,37 +81,35 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
     waitfig = waitbar(0, waitmsg);
     tic
     
-    %%% get wav file and read it in 
+    %%% process each annotation
     for w = 1:num_annotations %Start rows loop
         %%% update waitbar
         t_elapsed = toc;
         t_rem = t_elapsed.*((num_annotations-(w-1))/(w-1));
         waitbar(w/num_annotations, waitfig, sprintf('%s\nEstimated time remaining: %s', waitmsg, duration(0,0,t_rem)))
-        
-        %%% process 
-        
-        temp = PLA.filename(w);
             
+        %%% get wav file and read it in, if not already done
+        temp = PLA.filename(w);
         if isempty(x)||~strcmp(temp, FileName) %check if first time running
-           FileName = temp;
-           for i = 1:length(WAVFILES.name)
+            FileName = temp;
+            for i = 1:length(WAVFILES.name)
                 if contains(WAVFILES.name(i), FileName)
                    PATH2WAV = char(fullfile(WAVFILES.folder(i),WAVFILES.name(i)));
                    continue
                 end
-           end
-           if ~exist('PATH2WAV','var')
-              disp("File not found in directory") 
-              return
-           end
-           [x,Fs] = audioread(PATH2WAV);
-           [M,q] = size(x); %get size length of audio
-           dt = 1/Fs;      %time between samples in seconds
-           t = dt*(0:M-1)';%get time index in seconds
-           xt = [x t];       
-      %%% create bandpass filter object if it doesn't exist already
-           if isempty(bandpass_filter) || Fs ~= bandpass_filter.SampleRate
-              bandpass_filter = designfilt(...
+            end
+            if ~exist('PATH2WAV','var')
+                disp("File not found in directory") 
+                return
+            end
+            [x,Fs] = audioread(PATH2WAV);
+            [M,q] = size(x); %get size length of audio
+            dt = 1/Fs;      %time between samples in seconds
+            t = dt*(0:M-1)';%get time index in seconds
+            xt = [x t];       
+            %%% create bandpass filter object if it doesn't exist already
+            if isempty(bandpass_filter) || Fs ~= bandpass_filter.SampleRate
+                bandpass_filter = designfilt(...
                     'bandpassfir',...
                     'StopbandFrequency1', SNR_PARAMS_filtered.LowerStopbandFrequency,...
                     'PassbandFrequency1', SNR_PARAMS_filtered.LowerPassbandFrequency,...
@@ -123,15 +121,15 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
                     'DesignMethod', 'kaiserwin',...
                     'SampleRate', Fs...
                     );
-           end    
-       end
+            end    
+        end
   
-       %%% Get Start of annotation and End of annotation
-       PLA_Start = PLA.annotation_relative_start_time_sec(w);
-       PLA_Stop = PLA.annotation_relative_end_time_sec(w);
+        %%% Get Start of annotation and End of annotation
+        PLA_Start = PLA.annotation_relative_start_time_sec(w);
+        PLA_Stop = PLA.annotation_relative_end_time_sec(w);
         
-       % Start90 = PLA_StartTime90 + RelativeStartTime;
-       % End90 = PLA_StopTime90 + RelativeStartTime;
+        % Start90 = PLA_StartTime90 + RelativeStartTime;
+        % End90 = PLA_StopTime90 + RelativeStartTime;
         
         %%% extract bandpass-filtered signal and noise samples
         [xSignal, xNoise] = snr.extractSN(x, Fs, PLA_Start, PLA_Stop, NoiseDistance, BP_buffer, bandpass_filter, Units);
