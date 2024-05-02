@@ -56,75 +56,36 @@ function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, n
     numIdealNoiseSamples = samplesFromInput(idealNoiseSize);
     numClipBufferSamples = samplesFromInput(clipBufferSize);
     
-    %sigStartSample = samplesFromInput(sigStartTarget);
-    %sigStopSample = samplesFromInput(sigStopTarget);
-    %sigStartSamplesOther = samplesFromInput(sigStartOther);
-    %sigStopSamplesOther = samplesFromInput(sigStopOther);
-    % get SNR params
-    %noiseDistSamples = samplesFromInput(noiseDist);
-    %nNoiseSamplesIdeal = samplesFromInput(noiseIdealSize);
-    %clipBufferSamples = samplesFromInput(clipBufferSize);
-    
-    % get size of signal annotation box in samples
-    %numSigBoxSamples = sigStopSample - sigStartSample + 1;
-    numTargetSigBoxSamples = i_targetSigBoxPos(2) - i_targetSigBoxPos(1) + 1;
-    
     % generate shorter clip (easier to filter)
     %%% if it's not possible to generate the clip (i.e., because the signal
     %%% is too close to the beginning of the sequence), then return empties
-    %clipStartSample = sigStartSample - noiseDistSamples - nSigSamples - clipBufferSamples;
-    %clipStopSample = sigStopSample + clipBufferSamples;
     i_clipStart = i_targetSigBoxPos(1) - numNoiseDistSamples - numIdealNoiseSamples - numClipBufferSamples;
     i_clipStop = i_targetSigBoxPos(2) + numClipBufferSamples;
-    %clipStartSample = sigStartSample - numNoiseDistSamples - numIdealNoiseSamples - numClipBufferSamples;
-    %clipStopSample = sigStopSample + numClipBufferSamples;
-    
     if i_clipStart > 0 && i_clipStop <= numel(x)
         xClip = x(i_clipStart:i_clipStop);
 
         % get signal box start/stop samples relative to clip
-        %%% target signal
-        %** Old complicated way
-        j_targetSigBoxPos_OLD = numClipBufferSamples + numIdealNoiseSamples + numNoiseDistSamples + [1, numTargetSigBoxSamples];
-        %sigStartSampleClip_OLD = numClipBufferSamples + numTargetSigBoxSamples + numNoiseDistSamples + 1;
-        %sigStopSampleClip_OLD = sigStartSampleClip_OLD + numTargetSigBoxSamples - 1;
-        %** new easy way [still need to verify that this works]
+        %%% for both target and non-target signals
         j_targetSigBoxPos = i_targetSigBoxPos - i_clipStart + 1;
-        %sigStartSampleClip = sigStartSample - clipStartSample + 1;
-        %sigStopSampleClip = sigStopSample - clipStartSample + 1;
-        %** DEBUG
-        %fprintf('Old sig clip indices: [%d, %d]\n New sig clip indices: [%d, %d]\n', j_targetSigBoxPos_OLD(1), j_targetSigBoxPos_OLD(2), j_targetSigBoxPos(1), j_targetSigBoxPos(2))
-        %keyboard
-        %** END DEBUG
-        %%% other signals
         j_otherSigBoxPos = i_otherSigBoxPos - i_clipStart + 1;
-        %sigStartSamplesClipOther = sigStartSamplesOther - clipStartSample + 1;
-        %sigStopSamplesClipOther = sigStopSamplesOther - clipStartSample + 1;
 
         % apply digital filter
         xClipFilt = noDelayFilt(dFilter, xClip);
 
         % isolate 90% energy signal
-        xSigBoxFilt = xClipFilt(j_targetSigBoxPos(1):j_targetSigBoxPos(2));
-        [ks_start90, ks_stop90] = calcEng(xSigBoxFilt,90);
-        %xSigStart90 = clipStartSample + sigStartSampleClip + Start90;
-        %xSigStop90 = clipStartSample + sigStartSampleClip + Stop90;
-        xSignal = xSigBoxFilt(ks_start90:ks_stop90);
+        xSigInitial = xClipFilt(j_targetSigBoxPos(1):j_targetSigBoxPos(2));
+        [ks_start90, ks_stop90] = calcEng(xSigInitial,90);
+        xSignal = xSigInitial(ks_start90:ks_stop90);
        
         % get relative noise position
-        %nSig90Samples = length(xSignal);
         j_targetSigEnergyPos = j_targetSigBoxPos(1) + [ks_start90,ks_stop90] - 1;
         j_noisePos = j_targetSigEnergyPos(1) - numNoiseDistSamples - [numIdealNoiseSamples, 1];
-        %noiseStartSampleClip = sigStartSampleClip - noiseDistSamples - nSig90Samples;
-        %noiseStartSampleClip = sigStartSampleClip - numNoiseDistSamples - numIdealNoiseSamples;
-        %noiseStopSampleClip = sigStartSampleClip - numNoiseDistSamples - 1;
         
         % isolate noise
         xNoiseInitial = xClipFilt(j_noisePos(1):j_noisePos(2));
         
         % look for non-target signals that exist in the noise window
         kn_otherSigBoxPos = j_otherSigBoxPos - j_noisePos(1) + 1;
-        %otherSignalsInNoise = find(kn_otherSigBoxPos(:,1) > 0 & kn_otherSigBoxPos(:,2) <= numIdealNoiseSamples);
         otherSignalsInNoise = find(any(kn_otherSigBoxPos > 0 & kn_otherSigBoxPos <= numIdealNoiseSamples, 2));
         
         % remove parts of noise that contain other signals
@@ -137,14 +98,6 @@ function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, n
         end
         xNoise = xNoise(~isnan(xNoise));
         
-        % remove parts of noise that contain other signals
-        %xNoise = xNoiseInitial;
-        %numOtherSigs = numel(sigStartOther);
-        %for ii = 1:numOtherSigs
-        %    sigSamplesOther_ii = (sigStartSamplesClipOther(ii):sigStopSamplesClipOther(ii)) - noiseStartSampleClip + 1;
-        %    xNoise(sigSamplesOther_ii) = NaN;
-        %end
-        %xNoise = xNoise(~isnan(xNoise));
 
         %** DEBUG PLOT
         %{
@@ -177,21 +130,6 @@ function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, n
         end
         %}
         
-        %** DEBUG PLOT (OLD)
-        %{
-        tClip = (((1:numel(xClip))-1)./fs)';
-        figure;
-        ax = axes();
-        ax.NextPlot = 'add';
-        plot(ax, tClip, xClip)
-        plot(ax, tClip, xClipFilt)
-        plot(ax, tClip(sigStartSampleClip:sigStopSampleClip), xSignal);
-        plot(ax, tClip(noiseStartSampleClip:noiseStopSampleClip), xNoise);
-        legend(ax, {'Unfiltered Clip', 'Filtered Clip', 'Signal', 'Noise'})
-        grid(ax, 'on')
-        box(ax, 'on')
-        keyboard
-        %}
     else
         xSignal = [];
         xNoise = [];
