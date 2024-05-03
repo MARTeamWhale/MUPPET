@@ -1,4 +1,4 @@
-function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, noiseDist, idealNoiseSize, clipBufferSize, dFilter, units)
+function [xSignal, xNoise] = extractSN(varargin)
 % Isolate signal and associated noise samples from a larger audio time
 % series vector, given a pre-determined signal location.
 %
@@ -10,34 +10,48 @@ function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, n
 %
 % Written by Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-05-02
+% 2024-05-03
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
 % - [Wilfried] Things I might do:
-%   -- add input parsing with inputParser
-%   -- add noise range as an output argument (in samples)
-%   -- ideal noise size could be an optional argument, where the default
-%       makes it equal to the duration of the signal
+%   -- add noise range as an output argument
+%   -- remove buffer size as an argument and calculate it automatically
 % - [Mike] Additional thing to consider
 %   -- exporting 90% energy 
-%   -- add parameter to set cumulative energy thresehold
+%   -- [DONE] add parameter to set cumulative energy thresehold
 
     
     import snr.noDelayFilt
     import snr.calcEng
-
-    % define equation to get time series positional parameters in samples,
-    % depending on the value of "units"
-    switch units
-        case 'seconds'
-            samplesFromInput = @(a) round(a*fs);
-        case 'samples'
-            samplesFromInput = @(a) a;
-        otherwise
-            error('Invalid value for "units": must be either ''seconds'' or ''samples''.')
-    end
     
+    % parse input
+    p = inputParser();
+    p.addRequired('x', @(val)validateattributes(val,{'numeric'},{'column'}))
+    p.addRequired('fs', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
+    p.addRequired('targetSigBoxPos', @(val)validateattributes(val,{'numeric'},{'numel',2}))
+    p.addRequired('dFilter', @(val)validateattributes(val,{'digitalFilter'},{'scalar'}))
+    p.addParameter('EnergyPercent', 90, @(val)validateattributes(val,{'numeric'},{'scalar','positive','<=',100}))
+    p.addParameter('NoiseDistance', 1, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}))
+    p.addParameter('IdealNoiseSize', [], @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
+    p.addParameter('RemoveFromNoise', [], @(val)validateattributes(val,{'numeric'},{'ncols',2}))
+    p.addParameter('ClipBufferSize', 0.032, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}))
+    
+    p.parse(varargin{:})
+    %%% required input
+    x = p.Results.x;
+    fs = p.Results.fs;
+    targetSigBoxPos = p.Results.targetSigBoxPos;
+    dFilter = p.Results.dFilter;
+    %%% optional input
+    enerPerc = p.Results.EnergyPercent;
+    noiseDist = p.Results.NoiseDistance;
+    idealNoiseSize = p.Results.IdealNoiseSize;
+    otherSigBoxPos = p.Results.RemoveFromNoise;
+    clipBufferSize = p.Results.ClipBufferSize;
+    % end input parsing
+    
+    % convert all temporal arguments to samples
     %%% ...................................................................
     %%% NOTE: There will be several types of relative indices at play here,
     %%% so to keep track of which index variables are using which reference
@@ -48,15 +62,23 @@ function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, n
     %%% ks_ = relative to the signal sample isolated from the clip 
     %%%     (from annotation box, not the cumulative energy limits)
     %%% ...................................................................
+    secs2samples = @(t) round(t*fs);
+    %%% signal boxes
+    i_targetSigBoxPos = secs2samples(targetSigBoxPos);
+    i_otherSigBoxPos = secs2samples(otherSigBoxPos);
+    %%% noise distance and buffer
+    numNoiseDistSamples = secs2samples(noiseDist);
+    numClipBufferSamples = secs2samples(clipBufferSize);
+    %%% noise samples - for this one, if user did not specify a duration,
+    %%% then use the same number of samples as the target signal.
+    useEqualSigNoiseSizes = isempty(idealNoiseSize);
+    if useEqualSigNoiseSizes
+        numIdealNoiseSamples = i_targetSigBoxPos(2) - i_targetSigBoxPos(1) + 1;
+    else
+        numIdealNoiseSamples = secs2samples(idealNoiseSize);
+    end
     
-    % get all positional and size parameters in samples
-    i_targetSigBoxPos = samplesFromInput(targetSigBoxPos);
-    i_otherSigBoxPos = samplesFromInput(otherSigBoxPos);
-    numNoiseDistSamples = samplesFromInput(noiseDist);
-    numIdealNoiseSamples = samplesFromInput(idealNoiseSize);
-    numClipBufferSamples = samplesFromInput(clipBufferSize);
-    
-    % generate shorter clip (easier to filter)
+    % generate shorter clip from audio vector (easier to filter)
     %%% if it's not possible to generate the clip (i.e., because the signal
     %%% is too close to the beginning of the sequence), then return empties
     i_clipStart = i_targetSigBoxPos(1) - numNoiseDistSamples - numIdealNoiseSamples - numClipBufferSamples;
@@ -72,13 +94,20 @@ function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, n
         % apply digital filter
         xClipFilt = noDelayFilt(dFilter, xClip);
 
-        % isolate 90% energy signal
+        % isolate specific signal bounds based on a percentage of 
+        % cumulative energy
         xSigInitial = xClipFilt(j_targetSigBoxPos(1):j_targetSigBoxPos(2));
-        [ks_start90, ks_stop90] = calcEng(xSigInitial,90);
-        xSignal = xSigInitial(ks_start90:ks_stop90);
+        [ks_sigEnergyStart, ks_sigEnergyStop] = calcEng(xSigInitial,enerPerc);
+        xSignal = xSigInitial(ks_sigEnergyStart:ks_sigEnergyStop);
+        
+        % update number of ideal noise samples if using equal signal and
+        % noise sizes
+        if useEqualSigNoiseSizes
+            numIdealNoiseSamples = ks_sigEnergyStop - ks_sigEnergyStart + 1;
+        end
        
         % get relative noise position
-        j_targetSigEnergyPos = j_targetSigBoxPos(1) + [ks_start90,ks_stop90] - 1;
+        j_targetSigEnergyPos = j_targetSigBoxPos(1) + [ks_sigEnergyStart,ks_sigEnergyStop] - 1;
         j_noisePos = j_targetSigEnergyPos(1) - numNoiseDistSamples - [numIdealNoiseSamples, 1];
         
         % isolate noise
@@ -101,7 +130,7 @@ function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, n
 
         %** DEBUG PLOT
         %{
-        if numel(otherSignalsInNoise) > 0
+        %if numel(otherSignalsInNoise) > 0
             j_intraNoiseSigs = [];
             for ss = 1:numel(otherSignalsInNoise)
                 idx_ss = otherSignalsInNoise(ss);
@@ -127,7 +156,7 @@ function [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, otherSigBoxPos, n
             grid(ax, 'on')
             box(ax, 'on')
             keyboard
-        end
+        %end
         %}
         
     else

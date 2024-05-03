@@ -5,7 +5,7 @@
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-05-02
+% 2024-05-03
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
@@ -60,7 +60,7 @@ SNR_PARAMS_filtered = SNR_PARAMS(strcmp(SNR_PARAMS.Species,string(species{1,1}))
 %%% extract variables from PARAMS table
 %Freq_band = [SNR_PARAMS_filtered.LowerFrequency SNR_PARAMS_filtered.UpperFrequency];
 NoiseDistance = SNR_PARAMS_filtered.NoiseDistance; 
-NoiseSize = 10; % hardcoded to 5 sec for now
+NoiseSize = 10; % hardcoded to 10 sec for now
 BP_buffer = SNR_PARAMS_filtered.BP_Buffer;
 Units = string(SNR_PARAMS_filtered.Units);
 
@@ -141,8 +141,17 @@ for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redun
         PLA_Stop_other = PLA.annotation_relative_end_time_sec(others_in_wav);
         
         %%% extract bandpass-filtered signal and noise samples
+        %%{
+        [xSignal, xNoise] = snr.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
+            'NoiseDistance', NoiseDistance,...
+            'IdealNoiseSize', NoiseSize,...
+            'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
+            'ClipBufferSize', BP_buffer);
+        %}
+        %** Testing defaults
+        %[xSignal, xNoise] = snr.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter);
+        %** legacy code
         %[xSignal, xNoise] = snr.extractSN_legacy(x, Fs, PLA_Start, PLA_Stop, NoiseDistance, BP_buffer, bandpass_filter, Units);
-        [xSignal, xNoise] = snr.extractSN(x, Fs, [PLA_Start,PLA_Stop], [PLA_Start_other,PLA_Stop_other], NoiseDistance, NoiseSize, BP_buffer, bandpass_filter, Units);
         
         %%% calculate SNR 
         %%% (leave NaN if not possible because signal is too close to 
