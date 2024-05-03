@@ -4,10 +4,33 @@ function Baleen_SNR_Tool(varargin)
 %
 % Process Pamlab output for use in SNR tool.
 %
+% SYNTAX:
+%   Baleen_SNR_Tool
+%   Baleen_SNR_Tool(Name,Value)
+%
+% OPTIONAL INPUT ARGUMENTS (Name-Value Pairs):
+%   .......................................................................
+%   "PAMLAB_DATA_FOLDER" - Path to folder with PAMlab output. If not
+%       specified, user will be prompted to select the path manually.
+%   .......................................................................
+%   "WAV_FILE_FOLDER" - Path to folder with WAV files. If not specified,
+%       user will be prompted to select the path manually.
+%   .......................................................................
+%   "OUTPUT_FOLDER_LOCATION" - Path where the tool's output folder will be
+%       created. If not specified, user will be prompted to select the path
+%       manually, or simply use the parent folder of the PAMlab output by
+%       cancelling the prompt.
+%   .......................................................................
+%   "PARAMFILE" - Path to CSV file of SNR parameters. If not specified, the
+%       tool will try to load the default parameters from the file
+%       SNR_PARAMS.csv.
+%   .......................................................................
+%
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
 % 2024-05-03
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
