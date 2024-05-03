@@ -234,7 +234,8 @@ function Baleen_SNR_Tool(varargin)
             %** equal if that happens) - this will return zeros and -Infs
             %** instead of negatives and complex numbers.
             if ~isempty(xSignal)
-                [PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise);
+                %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise);
+                [PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise, 'CapNoise',true);
             end
 
             %%%

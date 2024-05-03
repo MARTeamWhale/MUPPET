@@ -1,4 +1,4 @@
-function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin)
+function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin, varargin)
 %
 % Calculate signal-to-noise ratio, given pre-isolated windows of signal and
 % noise.
@@ -30,7 +30,9 @@ function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin)
     p = inputParser();
     p.addRequired('xSigWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
     p.addRequired('xNoiseWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
-    p.parse(xSigWin, xNoiseWin);
+    p.addParameter('CapNoise', false, @(val)validateattributes(val,{'logical'},{'scalar'}))
+    p.parse(xSigWin, xNoiseWin, varargin{:});
+    doCapNoise = p.Results.CapNoise;
     
     assert(size(xSigWin,2) == size(xNoiseWin,2), 'Signal and noise windows must have the same number of channels!')
     
@@ -55,6 +57,12 @@ function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin)
     durNoiseWin = size(xNoiseWin,1)/fs;
     pNoiseWin = avepow(xNoiseWin, dt, durNoiseWin);
     %}
+    
+    % If average power in the noise window is stronger than in the
+    % signal window, then make the two equal, if specified.
+    if doCapNoise && pNoiseWin > pSigWin
+        pNoiseWin = pSigWin;
+    end
     
     % calculate SNR
     snr_dB = 10*log10(pSigWin./pNoiseWin);
