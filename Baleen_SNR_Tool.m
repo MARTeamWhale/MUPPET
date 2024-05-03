@@ -16,10 +16,12 @@ function Baleen_SNR_Tool(varargin)
     p.addParameter('PAMLAB_DATA_FOLDER', '', @isfolder)
     p.addParameter('WAV_FILE_FOLDER', '', @isfolder)
     p.addParameter('OUTPUT_FOLDER_LOCATION', '', @isfolder)
+    p.addParameter('PARAMFILE', '', @isfile)
     p.parse(varargin{:})
     PATH2INPUT = p.Results.PAMLAB_DATA_FOLDER;
     PATH2DATA = p.Results.WAV_FILE_FOLDER;
     PATH2OUTPUTDIRECTORY = p.Results.OUTPUT_FOLDER_LOCATION;
+    PARAMFILE = p.Results.PARAMFILE;
     
     % prompt user to specify I/O folder paths interactively if they were
     % not entered via the command line
@@ -78,7 +80,16 @@ function Baleen_SNR_Tool(varargin)
                              %[frequency band] x
                              % noiseDistance x
                              % buffer size (maybe) x
-    SNR_PARAMS = readtable("SNR_PARAMS.csv"); %Change PARAM file here if required
+    %%% Look for default parameter file if one was not specified in the
+    %%% command line
+    if isempty(PARAMFILE)
+        toolScriptPath = mfilename('fullpath');
+        [tooldir, ~, ~] = fileparts(toolScriptPath);
+        PARAMFILE = fullfile(tooldir, 'SNR_PARAMS.csv');
+        disp('Using default parameter file')
+    end
+    
+    SNR_PARAMS = readtable(PARAMFILE);
     specieslist = {SNR_PARAMS.Species};
     specieslist = unique(horzcat(specieslist{:}),'stable');
     sp_idx = listdlg('PromptString','Select a species:',...
