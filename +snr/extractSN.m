@@ -1,11 +1,70 @@
 function [xSignal, xNoise] = extractSN(varargin)
-% Isolate signal and associated noise samples from a larger audio time
-% series vector, given a pre-determined signal location.
 %
-% This function can accept the locations of other, non-target signals in
-% the time series as an input argument. These other signals will be removed
-% from the noise window, in which case xNoise will consist of a truncated
-% and possibly concatenated noise vector.
+% Isolate signal and associated noise samples from a larger audio time
+% series vector, given a pre-determined signal location. Works by isolating
+% a subsection of the audio vector and applyinging a bandpass filter to it 
+% before extracting signal and noise samples.
+%
+% This function can also accept the locations of other, non-target signals
+% in the time series as an input argument. These other signals will be
+% removed from the noise window, in which case the noise sample will
+% consist of a truncated and possibly concatenated noise vector.
+%
+% SYNTAX:
+%   [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, dFilter)
+%   [__] = extractSN(__, Name,Value)
+%
+% INPUT ARHUMENTS:
+%   Required
+%   .......................................................................
+%   "x" - vector representing an audio time series (must be a column)
+%   .......................................................................
+%   "fs" - sampling rate, in Hertz
+%   .......................................................................
+%   "targetSigBoxPos" - 2-element vector representing the start and stop
+%       times of a window containing the target signal, in seconds
+%   .......................................................................
+%   "dFilter" - Bandpass filter object, created using the "designfilt"
+%       function from the Signal Processing Toolbox
+%   .......................................................................
+%
+%   Optional (Name-Value Pairs)
+%   .......................................................................
+%   "EnergyPercent" - Percentage of the total energy within the signal
+%       window that will determine the precise start and stop times of the
+%       signal within that window. Default is 90%.
+%   .......................................................................
+%   "NoiseDistance" - Amount of separation that the noise window should
+%       have before the energy-based start of the target signal, in
+%       seconds. Default is 1 sec.
+%   .......................................................................
+%   "IdealNoiseSize" - The ideal duration of the noise sample, in seconds.
+%       If not specified, then this parameter will be made equal to the
+%       energy-based duration of the target signal. The actual noise
+%       duration may be shorter than the ideal size if it contains other
+%       signals that must be removed.
+%   .......................................................................
+%   "RemoveFromNoise" - N-by-2 matrix of start and stop times of non-target
+%       signals to be removed from the noise window, should they overlap 
+%       with it. N is the number of signals. Specified in seconds.
+%   .......................................................................
+%   "ClipBufferSize" - Amount of buffer samples to include at the beginning
+%       and end of the bandpassed sub-clip, to ensure that the signal and
+%       noise windows do not contain edge artefacts introduced by the
+%       bandpass filter. Specified in seconds. The default is 0.032 secs.
+%       NOTE: This parameter may be removed in the future and determined
+%       automatically.
+%   .......................................................................
+%
+% OUTPUT ARGUMENTS:
+%   .......................................................................
+%   "xSignal" - vector of bandpass-filtered target signal samples
+%   .......................................................................
+%   "xNoise" - vector of bandpass-filtered noise samples. May consist of
+%       blocks of noise at different points in the time series concatenated
+%       together, if the noise window included any contaminating signals 
+%       that the user requested to remove.
+%   .......................................................................
 %
 %
 % Written by Wilfried Beslin
@@ -15,8 +74,14 @@ function [xSignal, xNoise] = extractSN(varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
 % - [Wilfried] Things I might do:
-%   -- add noise range as an output argument
+%   -- add noise range and/or duration as output arguments
 %   -- remove buffer size as an argument and calculate it automatically
+%   -- shrink the noise window if there is not enough space in the time
+%       series to isolate a clip with the ideal noise size
+%   -- extract noise samples that occur after the signal, either to
+%       complement the preceding noise and give more samples to work with,
+%       or as an alternative in case there is not enough space to isolate
+%       a full noise window ahead of the target signal.
 % - [Mike] Additional thing to consider
 %   -- exporting 90% energy 
 %   -- [DONE] add parameter to set cumulative energy thresehold
