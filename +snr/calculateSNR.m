@@ -1,4 +1,5 @@
-function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin, varargin)
+function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin)
+%
 % Calculate signal-to-noise ratio, given pre-isolated windows of signal and
 % noise.
 %
@@ -10,7 +11,7 @@ function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin, varargin)
 % The first output is the base SNR equation, that is:
 %   SNR = powSig/powNoise
 % where powSig and powNoise are the average power of the signal and noise
-% windoes, respectively.
+% windows, respectively.
 %
 % The second output subtracts the estimated noise power from the numerator,
 % that is:
@@ -21,7 +22,7 @@ function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin, varargin)
 %
 %
 % Last updated by Wilfried Beslin
-% 2024-03-12
+% 2024-05-03
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -29,16 +30,12 @@ function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin, varargin)
     p = inputParser();
     p.addRequired('xSigWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
     p.addRequired('xNoiseWin', @(val)validateattributes(val,{'numeric'},{'2d'}))
-    %p.addRequired('fs', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
-    %p.addParameter('SubtractNoise', false, @(val)validateattributes(val,{'logical'},{'scalar'}))
-    %p.parse(xSigWin, xNoiseWin, fs, varargin{:});
-    p.parse(xSigWin, xNoiseWin, varargin{:});
-    %subtractNoise = p.Results.SubtractNoise;
+    p.parse(xSigWin, xNoiseWin);
     
     assert(size(xSigWin,2) == size(xNoiseWin,2), 'Signal and noise windows must have the same number of channels!')
     
     % calculate the power of the signal and noise windows
-    avepow = @(x) sum((x.^2),1)./size(x,1); % equation for calculating RMS-based average power for each channel
+    avepow = @(x) sum((x.^2),1)./size(x,1); % equation for calculating average power in each channel
     pSigWin = avepow(xSigWin);
     pNoiseWin = avepow(xNoiseWin);
     
@@ -62,12 +59,4 @@ function [snr_dB, snr_adjusted_dB] = calculateSNR(xSigWin, xNoiseWin, varargin)
     % calculate SNR
     snr_dB = 10*log10(pSigWin./pNoiseWin);
     snr_adjusted_dB = 10*log10((pSigWin - pNoiseWin)./pNoiseWin);
-    %{
-    if subtractNoise
-        snr_linear = (pSigWin - pNoiseWin)./pNoiseWin;
-    else
-        snr_linear = pSigWin./pNoiseWin;
-    end
-    snr_dB = 10*log10(snr_linear);
-    %}
 end
