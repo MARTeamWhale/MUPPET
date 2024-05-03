@@ -71,7 +71,7 @@ function [xSignal, xNoise] = extractSN(varargin)
     numClipBufferSamples = secs2samples(clipBufferSize);
     %%% noise samples - for this one, if user did not specify a duration,
     %%% then use the same number of samples as the target signal.
-    useEqualSigNoiseSizes = isempty(idealNoiseSize);
+    useEqualSigNoiseSizes = isempty(idealNoiseSize) || isnan(idealNoiseSize);
     if useEqualSigNoiseSizes
         numIdealNoiseSamples = i_targetSigBoxPos(2) - i_targetSigBoxPos(1) + 1;
     else

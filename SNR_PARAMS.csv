@@ -1,4 +1,4 @@
-﻿Species,Call Type,Lower Stopband Frequency,Lower Passband Frequency,Upper Passband Frequency,Upper Stopband Frequency,Noise Distance,BP_Buffer, Units
-Blue Whale,Audible,20,30,120,130,1,0.032,seconds
-Blue Whale,Tonal,30,40,120,130,1,0.032,seconds
-Red Whale,Tonal,190,200,300,310,1,0.032,seconds
+﻿Species,Call_Type,Lower_Passband_Frequency,Upper_Passband_Frequency,Stopband_Rolloff_Bandwidth,Noise_Distance,Ideal_Noise_Duration,Signal_Energy_Percent
+Blue Whale,Audible,30,120,10,1,10,90
+Blue Whale,Tonal,40,120,10,1,10,90
+Red Whale,Tonal,200,300,10,1,,90

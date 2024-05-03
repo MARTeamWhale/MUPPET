@@ -73,15 +73,8 @@ function Baleen_SNR_Tool(varargin)
        mkdir(PATH2OUTPUT)
     end
 
-    
-    %%% read in call type params: 
-                             % Species x
-                             % Call type x
-                             %[frequency band] x
-                             % noiseDistance x
-                             % buffer size (maybe) x
-    %%% Look for default parameter file if one was not specified in the
-    %%% command line
+    % read parameter file
+    %%% Look for default file if one was not specified in the command line
     if isempty(PARAMFILE)
         toolScriptPath = mfilename('fullpath');
         [tooldir, ~, ~] = fileparts(toolScriptPath);
@@ -90,13 +83,15 @@ function Baleen_SNR_Tool(varargin)
     end
     
     SNR_PARAMS = readtable(PARAMFILE);
+    paramnames = {'Species', 'Call_Type', 'Lower_Passband_Frequency', 'Upper_Passband_Frequency', 'Stopband_Rolloff_Bandwidth', 'Noise_Distance', 'Ideal_Noise_Duration', 'Signal_Energy_Percent'};
+    assert(all(ismember(SNR_PARAMS.Properties.VariableNames, paramnames)), 'Parameter file does not include all expected parameters')
     specieslist = {SNR_PARAMS.Species};
     specieslist = unique(horzcat(specieslist{:}),'stable');
     sp_idx = listdlg('PromptString','Select a species:',...
                       'SelectionMode','single',...
                       'ListString',specieslist);
     species = specieslist(sp_idx,1);
-    calltypelist = SNR_PARAMS.CallType(strcmp(SNR_PARAMS.Species,string(species{1,1})),:);
+    calltypelist = SNR_PARAMS.Call_Type(strcmp(SNR_PARAMS.Species,string(species{1,1})),:);
     calltypelist = {calltypelist};
     calltypelist = unique(horzcat(calltypelist{:}),'stable');
     %if length(calltypelist)== 1
@@ -106,15 +101,16 @@ function Baleen_SNR_Tool(varargin)
                       'SelectionMode','single',...
                       'ListString',calltypelist);
     calltype = calltypelist(ct_idx,1);
-    SNR_PARAMS_filtered = SNR_PARAMS(strcmp(SNR_PARAMS.Species,string(species{1,1})) & strcmp(SNR_PARAMS.CallType,string(calltype{1,1})),:);
+    SNR_PARAMS_filtered = SNR_PARAMS(strcmp(SNR_PARAMS.Species,string(species{1,1})) & strcmp(SNR_PARAMS.Call_Type,string(calltype{1,1})),:);
 
-    %%% extract variables from PARAMS table
-    %Freq_band = [SNR_PARAMS_filtered.LowerFrequency SNR_PARAMS_filtered.UpperFrequency];
-    NoiseDistance = SNR_PARAMS_filtered.NoiseDistance; 
-    NoiseSize = 10; % hardcoded to 10 sec for now
-    BP_buffer = SNR_PARAMS_filtered.BP_Buffer;
-    Units = string(SNR_PARAMS_filtered.Units);
-
+    %%% extract or derive variables from PARAMS table
+    LowerStopbandFreq = SNR_PARAMS_filtered.Lower_Passband_Frequency - SNR_PARAMS_filtered.Stopband_Rolloff_Bandwidth;
+    LowerPassbandFreq = SNR_PARAMS_filtered.Lower_Passband_Frequency;
+    UpperPassbandFreq = SNR_PARAMS_filtered.Upper_Passband_Frequency;
+    UpperStopbandFreq = SNR_PARAMS_filtered.Upper_Passband_Frequency + SNR_PARAMS_filtered.Stopband_Rolloff_Bandwidth;
+    NoiseDistance = SNR_PARAMS_filtered.Noise_Distance; 
+    NoiseSize = SNR_PARAMS_filtered.Ideal_Noise_Duration;
+    EnergyPercent = SNR_PARAMS_filtered.Signal_Energy_Percent;
 
     %%% create empty variable to store bandpass filter object
     bandpass_filter = [];
@@ -164,10 +160,10 @@ function Baleen_SNR_Tool(varargin)
                 if isempty(bandpass_filter) || Fs ~= bandpass_filter.SampleRate
                     bandpass_filter = designfilt(...
                         'bandpassfir',...
-                        'StopbandFrequency1', SNR_PARAMS_filtered.LowerStopbandFrequency,...
-                        'PassbandFrequency1', SNR_PARAMS_filtered.LowerPassbandFrequency,...
-                        'PassbandFrequency2', SNR_PARAMS_filtered.UpperPassbandFrequency,...
-                        'StopbandFrequency2', SNR_PARAMS_filtered.UpperStopbandFrequency,...
+                        'StopbandFrequency1', LowerStopbandFreq,...
+                        'PassbandFrequency1', LowerPassbandFreq,...
+                        'PassbandFrequency2', UpperPassbandFreq,...
+                        'StopbandFrequency2', UpperStopbandFreq,...
                         'StopbandAttenuation1', 60,...
                         'StopbandAttenuation2', 60,...
                         'PassbandRipple', 1,...
@@ -197,7 +193,7 @@ function Baleen_SNR_Tool(varargin)
                 'NoiseDistance', NoiseDistance,...
                 'IdealNoiseSize', NoiseSize,...
                 'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
-                'ClipBufferSize', BP_buffer);
+                'EnergyPercent', EnergyPercent);
             %}
             %** Testing defaults
             %[xSignal, xNoise] = snr.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter);
