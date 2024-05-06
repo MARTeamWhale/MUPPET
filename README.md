@@ -9,7 +9,7 @@ Goal: An SNR tool for use in cetacean research
 This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
 Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script<sup>*</sup> with several underlying functions. The helper script (`Baleen_SNR_Tool`) imports the output of JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the underlying functions, the first (`snr.extractSN`) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a Kaiser window-based FIR filter. Filtering is performed within `snr.extractSN` using the `snr.noDelayFilt` function, which applies the filter such that no time delays are introduced in the output. After bandpass filtering, precise start and end times of the signal are determined based on a user-specified percentage of the energy within the signal window using the function `snr.calcEng`. Noise samples are isolated relative to the energy-based start time of the signal. Ideal duration of the noise window may either be set by the user to some common value (e.g., 10 secs), or be made equal to the signal duration. If a noise window happens to includes parts of other signals that were annotated in PAMLAB, then those parts will be eliminated from the noise window (thereby shortening the noise window). The clipped and bandpassed call and noise samples are then passed to the function `snr.calculateSNR` to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.
 
-<sup>*</sup>_The helper script is actually implemented as a function that can optionally accept input arguments for greater flexibility. This will be discussed further below_.
+<sup>*</sup>_The helper script is actually implemented as a function that can optionally accept input arguments for greater flexibility. This will be discussed in the "Usage" section further below_.
 
 ## Set up
 
@@ -32,6 +32,31 @@ The tool requires inputs to calculate the SNR values. These include:
   - **Filename** - used to identify the original .wav file containing the call
   - **Relative Start Time** - The manually selected start time in seconds of the call artefact relative to the start of the .wav file
 - A directory containing all the .wav files for which PAMLAB artefact .csv files exist. *Note: This directory can contain additional .wav files, but **must** contain all .wav files for which PAMLAB annotations exist*   
+
+## Usage
+### Basic Usage
+To use the tool, open MATLAB and run the file _Baleen_SNR_Tool.m_. The most basic way to run this file is by pressing the "Run" button in the MATLAB editor, or by typing `Baleen_SNR_Tool` in the Command Window. This will load the parameters in the file _SNR_PARAMS.csv_, and you will be prompted to set the input and output file paths.
+
+### Input Arguments
+Alternatively, it is possible to pass certain input arguments when calling _Baleen_SNR_Tool_ via the command window, and avoid having to set them manually or use defaults. The arguments are:
+  - **PAMLAB_DATA_FOLDER** - Path to a folder with PAMlab output. If not specified, the tool will prompt the user to select the path manually.
+  - **WAV_FILE_FOLDER** - Path to the folder containing WAV files for the dataset of interest. If not specified, the tool will prompt the user to select the path manually.
+  - **OUTPUT_FOLDER_LOCATION** - Path where the tool's output folder will be created (the output folder will be called _SNR_OPUTPUT_). If not specified, the tool will prompt the user to select the path manually, or simply use the parent folder of the PAMlab data if the user cancels the prompt.
+  - **PARAMFILE** - Path to a CSV file of SNR parameters, as an alternative to the default _SNR_PARAMS.csv_ file. The specified file must still have the same column format as _SNR_PARAMS.csv_.
+
+Input arguments are set by using MATLAB's Name-Value pair syntax. For example:
+```matlab
+Baleen_SNR_Tool('PAMLAB_DATA_FOLDER',data_dir, 'WAV_FILE_FOLDER',wav_dir)
+```
+where in this case, `data_dir` and `wav_dir` are char string variables specifying the paths to the PAMLAB data folder and WAV file folder, respectively (e.g., `data_dir = 'C:\Users\Me\SNR_Tool_analysis\PAMLAB'`).
+
+### Output Arguments
+_Baleen_SNR_Tool_ will always save its output as CSV files within a folder called _SNR_OUTPUT_. However, it is also possible to pass the output into the MATLAB workspace by requesting it as an output variable when running the tool. The syntax for this is:
+```matlab
+out = Baleen_SNR_Tool
+```
+where `out` is the variable that will contain the output (it does not have to be called _out_ necessarily; give it any name you want). The output variable comes in the form of a MATLAB struct containing tables of PAMLAB annotations with the SNR data appended. Each field of the struct corresponds to one PAMLAB CSV file that was processed.
+
 
 ## Working outline for SNR functions
 
