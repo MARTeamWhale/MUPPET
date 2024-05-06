@@ -59,16 +59,16 @@ out = Baleen_SNR_Tool
 ```
 where `out` is the variable that will contain the output (it does not have to be called _out_ necessarily; give it any name you want). The output variable comes in the form of a MATLAB struct containing tables of PAMLAB annotations with the SNR data appended. Each field of the struct corresponds to one PAMLAB CSV file that was processed.
 
-## Output File
+## Output File [WIP]
 As the tool processes each PAMLAB annotation CSV file it finds, it will create enhanced duplicates of those files that contain the SNR information appended as new columns. Those files will be saved in the folder _SNR_OUTPUT_, whose location is set by the user.
 
 The added SNR columns are as follows:
-  - **SNR_Direct** - The "raw" SNR value in dB re. noise, calculated simply as:
+  - **SNR_Direct** - The "raw" SNR value in dB re. noise (see "SNR Calculation"), calculated simply as:
   ```matlab
   SNR_Direct = 10*log10(powSig/powNoise)
   ```
   where `powSig` is the average power within the energy-based signal duration window, and `powNoise` is the average power within the preceding noise window (excluding samples that contain other annotated signals).
-  - **SNR_Corrected** - The SNR value (in dB re. noise) corrected for noise within the signal window. This value is calculated as:
+  - **SNR_Corrected** - The SNR value (in dB re. noise) corrected for noise within the signal window (see "SNR Calculation"). This value is calculated as:
   ```matlab
   SNR_Corrected = 10*log10((powSig - powNoise)/powNoise)
   ```
@@ -76,8 +76,16 @@ The added SNR columns are as follows:
   - **SNRCalc_SignalDuration** - Duration of the signal as determined based on a user-specified percentage of the total energy within the signal annotation box, in seconds.
   - **SNRCalc_NoiseDuration** - Actual duration of the noise clip that was used to calculate SNR. Will always be equal to or less than the ideal noise duration, depending on whether the noise window contained other signals that needed to be removed or not.
 
+## SNR Calculation [WIP]
+The tool calculates signal-to-noise ratios as follows:
+$$SNR = 10\log_{10}\left(\frac{P_{signal}}{P_{noise}}\right)$$
+where $P_{signal}$ and $P_{noise}$ are the average power of signal and noise, respectively. Average power for a sampled time series $x$ is calculated as:
+$$P = \frac{1}{N}\displaystyle\sum_{i=1}^{N} x_{i}^{2}$$
+where $N$ is the total number of samples, and $i$ is the sample index.
+
+
 ### Direct vs. Corrected SNR
-A true signal-to-noise ratio compares the average power of a _pure signal_ to that of noise. However, in virtually all marine mammal PAM analyses, calls are extracted from noisy time series and thus actually consist of _signal + noise mixtures_ rather than pure signals. To account for this, the tool returns a _Corrected SNR_, which subtracts the estimated average noise power from the average power within the (energy-based) signal window. The effect that this correction has on the results, compared to the direct SNR measurement, is summarized in the table below:
+A true signal-to-noise ratio compares the average power of a _pure signal_ to that of noise. However, in virtually all marine mammal PAM analyses, calls are extracted from noisy time series and thus actually consist of _signal + noise mixtures_ rather than pure signals. To account for this, the tool returns a _Corrected SNR_ value, which subtracts the estimated average noise power from the average power within the (energy-based) signal window. The effect that this correction has on the results, compared to the direct SNR measurement, is summarized in the table below:
 
 | True Signal vs. Noise Energy | Expected SNR Value<br>(Direct) | Expected SNR Value<br>(Corrected) |
 | :--------------------------- | :----------------------------: | :-------------------------------: |
@@ -86,6 +94,12 @@ A true signal-to-noise ratio compares the average power of a _pure signal_ to th
 | *Signal = Noise*             | Positive  | 0         |
 | *Signal < Noise*             | Positive  | Negative  |
 | *Signal Absent; Noise Only*  | 0         | -Infinity |
+
+
+
+
+
+
 
 ## [OUTDATED] Working outline for SNR functions
 
