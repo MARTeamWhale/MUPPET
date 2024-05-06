@@ -1,4 +1,4 @@
-function Baleen_SNR_Tool(varargin)
+function varargout = Baleen_SNR_Tool(varargin)
 %
 % Baleen_SNR_Tool.m
 %
@@ -7,6 +7,7 @@ function Baleen_SNR_Tool(varargin)
 % SYNTAX:
 %   Baleen_SNR_Tool
 %   Baleen_SNR_Tool(Name,Value)
+%   out = Baleen_SNR_Tool(__)
 %
 % OPTIONAL INPUT ARGUMENTS (Name-Value Pairs):
 %   .......................................................................
@@ -26,13 +27,25 @@ function Baleen_SNR_Tool(varargin)
 %       SNR_PARAMS.csv.
 %   .......................................................................
 %
+% OPTIONAL OUTPUT ARGUMENTS:
+%   .......................................................................
+%   "out" = struct containing the output annotation tables that were saved
+%       to CSV files. Mostly useful for debugging or otherwise working with
+%       the results directly in the MATLAB workspace. Only returned if
+%       explicitly requested.
+%   .......................................................................
+%
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-05-03
+% 2024-05-06
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
+
+    % check if output arguments were requested
+    nargoutchk(0,1) % allows the function to return exactly one or zero output parameters
+    returnOutputVar = nargout > 0;
 
     % process optional input parameters (I/O paths)
     p = inputParser();
@@ -89,6 +102,7 @@ function Baleen_SNR_Tool(varargin)
     %Get list of Pamlab Output csv and path to wav files
     PAMLAB_ANNOTATIONS = dir(fullfile(PATH2INPUT, '\*.csv'));
     WAVFILES = struct2table(dir(fullfile(PATH2DATA, '**\*.wav')));
+    numAnnotations = length(PAMLAB_ANNOTATIONS);
     
     % create output folder
     PATH2OUTPUT = fullfile(PATH2OUTPUTDIRECTORY,'SNR_OUTPUT');
@@ -137,9 +151,14 @@ function Baleen_SNR_Tool(varargin)
 
     %%% create empty variable to store bandpass filter object
     bandpass_filter = [];
+    
+    %%% initialize output variable if output was requested
+    if returnOutputVar
+        out = struct();
+    end
 
     %%% process each artefact file
-    for p = 1:length(PAMLAB_ANNOTATIONS)%read in in Pamlab csv (Loop) Possibly redundant...
+    for p = 1:numAnnotations %read in in Pamlab csv (Loop) Possibly redundant...
         file = fullfile(PAMLAB_ANNOTATIONS(p).folder,PAMLAB_ANNOTATIONS(p).name);
         PLA = readtable(file);
         PLA.SNR = NaN(height(PLA),1); %create location to save SNR
@@ -226,13 +245,8 @@ function Baleen_SNR_Tool(varargin)
             %%% calculate SNR 
             %%% (leave NaN if not possible because signal is too close to 
             %%% endpoints)
-            %** Consider adding to the output the duration of the signal and
-            %** noise estimates, as well as a comment if the signal is too
-            %** close to the beginning or the noise is too powerful.
-            %** Or, instead of a comment, rig calculateSNR such that the noise
-            %** power can never be greater than the signal power (make them
-            %** equal if that happens) - this will return zeros and -Infs
-            %** instead of negatives and complex numbers.
+            %** Consider adding to the output the final duration of the
+            %** signal and noise estimates
             if ~isempty(xSignal)
                 %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise);
                 [PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise, 'CapNoise',true);
@@ -258,14 +272,35 @@ function Baleen_SNR_Tool(varargin)
             %%%
         end %call loop
         close(waitfig)
-            temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
-            temp_filename = [char(temp_name(1)) '_SNR.csv'];
-            final_filename = generateUniqueName(PATH2OUTPUT,temp_filename);
-            PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
-            writetable(PLA,PATH2OUTPUT_FILENAME);
+        
+        % create output file
+        temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
+        temp_filename = [char(temp_name(1)) '_SNR.csv'];
+        final_filename = generateUniqueName(PATH2OUTPUT,temp_filename);
+        PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
+        writetable(PLA,PATH2OUTPUT_FILENAME);
+        
+        % save table to output variable if needed
+        if returnOutputVar
+            outFieldName = temp_name{1};
+            outFieldNameAlt = sprintf('Annotations_%d',p);
+            try
+                out.(outFieldName) = PLA;
+            catch
+                warning('"%s" is not a valid field name for the output variable; it will be replaced with "%s".', outFieldName, outFieldNameAlt)
+                out.(outFieldNameAlt) = PLA;
+            end
+        end
+        
     end % end PAMLAB annotations loop
     
-end
+    % return the output variable if requested
+    if returnOutputVar
+        varargout{1} = out;
+    end
+    
+end % end main function
+
             
 %% generateUniqueName
 function newFileName = generateUniqueName(dirPath, fileName)
@@ -317,6 +352,3 @@ function newFileName = generateUniqueName(dirPath, fileName)
     end
 
 end
-          
-
-    
