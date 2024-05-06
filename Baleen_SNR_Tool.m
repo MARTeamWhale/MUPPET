@@ -48,20 +48,20 @@ function varargout = Baleen_SNR_Tool(varargin)
     returnOutputVar = nargout > 0;
 
     % process optional input parameters (I/O paths)
-    p = inputParser();
-    p.addParameter('PAMLAB_DATA_FOLDER', '', @isfolder)
-    p.addParameter('WAV_FILE_FOLDER', '', @isfolder)
-    p.addParameter('OUTPUT_FOLDER_LOCATION', '', @isfolder)
-    p.addParameter('PARAMFILE', '', @isfile)
-    p.parse(varargin{:})
-    PATH2INPUT = p.Results.PAMLAB_DATA_FOLDER;
-    PATH2DATA = p.Results.WAV_FILE_FOLDER;
-    PATH2OUTPUTDIRECTORY = p.Results.OUTPUT_FOLDER_LOCATION;
-    PARAMFILE = p.Results.PARAMFILE;
+    ip = inputParser();
+    ip.addParameter('PAMLAB_DATA_FOLDER', '', @isfolder)
+    ip.addParameter('WAV_FILE_FOLDER', '', @isfolder)
+    ip.addParameter('OUTPUT_FOLDER_LOCATION', '', @isfolder)
+    ip.addParameter('PARAMFILE', '', @isfile)
+    ip.parse(varargin{:})
+    PATH2INPUT = ip.Results.PAMLAB_DATA_FOLDER;
+    PATH2DATA = ip.Results.WAV_FILE_FOLDER;
+    PATH2OUTPUTDIRECTORY = ip.Results.OUTPUT_FOLDER_LOCATION;
+    PARAMFILE = ip.Results.PARAMFILE;
     
     % prompt user to specify I/O folder paths interactively if they were
     % not entered via the command line
-    pathNotSpecified = @(p) isnumeric(p) && p == 0;
+    pathNotSpecified = @(pth) isnumeric(pth) && pth == 0;
     %%% PAMLAB data
     if isempty(PATH2INPUT)
         PATH2INPUT = uigetdir('','SELECT FOLDER WITH PAMLAB OUTPUT');
