@@ -7,7 +7,9 @@ Goal: An SNR tool for use in cetacean research
 
 ## Introduction
 This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
-Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script with three underlying functions. The helper script (`Baleen_SNR_Tool`) imports the output of JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the underlying functions, the first (`snr.extractSN`) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a Kaiser window-based FIR filter. Filtering is performed within `snr.extractSN` using the `snr.noDelayFilt` function, which applies the filter such that no time delays are introduced in the output. The clipped and bandpassed call and noise samples are then passed to the function (`snr.calculateSNR`) to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.  
+Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script<sup>*</sup> with several underlying functions. The helper script (`Baleen_SNR_Tool`) imports the output of JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the underlying functions, the first (`snr.extractSN`) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a Kaiser window-based FIR filter. Filtering is performed within `snr.extractSN` using the `snr.noDelayFilt` function, which applies the filter such that no time delays are introduced in the output. After bandpass filtering, precise start and end times of the signal are determined based on a user-specified percentage of the energy within the signal window using the function `snr.calcEng`. Noise samples are isolated relative to the energy-based start time of the signal. Ideal duration of the noise window may either be set by the user to some common value (e.g., 10 secs), or be made equal to the signal duration. If a noise window happens to includes parts of other signals that were annotated in PAMLAB, then those parts will be eliminated from the noise window (thereby shortening the noise window). The clipped and bandpassed call and noise samples are then passed to the function `snr.calculateSNR` to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.
+
+<sup>*</sup>_The helper script is actually implemented as a function that can optionally accept input arguments for greater flexibility. This will be discussed further below_.
 
 ## Set up
 
@@ -18,20 +20,17 @@ Initial development was focused on Blue Whale audible calls. The tool currently 
 
 The tool requires inputs to calculate the SNR values. These include:
   -  SNR_PARAMS.csv: a parameter file which contains the filtering and noise presets for each specie's call type. This file has values for:
-      - Species - The species of interest (e.g. Blue Whale)
-      - Call Type - The call type (e.g. Audible, Tonal, etc...) 
-      - Lower Stopband Frequency - Frequency at the lower bound of the bandpass filter at which the desired attenuation level is reached (Hz). The closer this value is to the Lower Passband Frequency, the sharper the lower frequency cutoff will be, at the expense of increased filter order (and thus processing time). The attenuation level is currently 60 dB.
-      - Lower Passband Frequency - Lower bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the lowest frequency of interest.
-      - Upper Passband Frequency - Upper bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the highest frequency of interest.
-      - Upper Stopband Frequency - Frequency at the upper bound of the bandpass filter at which the desired attenuation level is reached (Hz). The closer this value is to the Upper Passband Frequency, the sharper the upper frequency cutoff will be, at the expense of increased filter order (and thus processing time). The attenuation level is currently 60 dB.
-      - Noise Distance - Value to determine how far before the **signal** the **noise** sample will be taken
-      - BP_Buffer - Value to add a buffer to the bandpass filter to minimize edge effects
-      - Units - Definition of the units used in Noise Distance and BP_Buffer (seconds or samples)
+      - **Species** - The species of interest (e.g. Blue Whale)
+      - **Call_Type** - The call type (e.g. Audible, Tonal, etc...) 
+      - **Lower_Passband_Frequency** - Lower bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the lowest frequency of interest.
+      - **Upper_Passband_Frequency** - Upper bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the highest frequency of interest.
+      - **Stopband_Rolloff_Bandwidth** - The amount of frequency bandwidth that it takes for the passband frequencies to be attenuated to a level of 60 dB (Hz). The closer this value is to zero, the sharper the passband frequency cutoffs will be, but at the expense of increased filter order (and thus processing time/memory usage). Note that filter order also increases with sampling rate.
+      - **Noise_Distance** - Value to determine how far before the ***signal*** the ***noise*** sample will be taken
+      - **Ideal_Noise_Duration** - The target duration that the noise window should have (seconds). This parameter can also be left empty, in which case the target noise duration will be equal to the signal duration. Note that the actual noise duration may be shorter than ideal, if the noise window contains other signals that must be removed to avoid contaminated noise estimates.
+      - **Signal_Energy_Percent** - The percentage of energy within a signal window that determines the start and stop times of a signal based on cumulative energy. For example, a value of 90 will mark the start time at 5% of the cumulative energy in the window, and the stop time at 95%.
 - A directory containing the .csv artefacts output generated by JASCO's PAMLAB. These files contain the artefact output of the manually selected calls. The inputs used from these files are:
-  - Filename - used to identify the original .wav file containing the call
-  - Relative Start Time - The manually selected start time in seconds of the call artefact relative to the start of the .wav file
-  - StartTime90 - The start in seconds from the Relative Start Time of the span of time which contains 90% of the energy within the artefact.
-  - StopTime90 -  The end in seconds from the Relative Start Time of the span of time which contains 90% of the energy within the artefact.
+  - **Filename** - used to identify the original .wav file containing the call
+  - **Relative Start Time** - The manually selected start time in seconds of the call artefact relative to the start of the .wav file
 - A directory containing all the .wav files for which PAMLAB artefact .csv files exist. *Note: This directory can contain additional .wav files, but **must** contain all .wav files for which PAMLAB annotations exist*   
 
 ## Working outline for SNR functions
