@@ -163,6 +163,8 @@ function varargout = Baleen_SNR_Tool(varargin)
         PLA = readtable(file);
         PLA.SNR_Direct = NaN(height(PLA),1); %create location to save SNR
         PLA.SNR_Corrected = NaN(height(PLA),1); %create location to save SNR with noise power subtracted from numerator
+        PLA.SNRCalc_SignalDuration = NaN(height(PLA),1); %create location to save the energy-based signal duration used to calculate SNR
+        PLA.SNRCalc_NoiseDuration = NaN(height(PLA),1); %create location to save the noise duration used to calculate SNR
         x = [];
         FileName =[];
 
@@ -250,6 +252,8 @@ function varargout = Baleen_SNR_Tool(varargin)
             if ~isempty(xSignal)
                 %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise);
                 [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = snr.calculateSNR(xSignal, xNoise, 'CapNoise',true);
+                PLA.SNRCalc_SignalDuration(w) = numel(xSignal)/Fs;
+                PLA.SNRCalc_NoiseDuration(w) = numel(xNoise)/Fs;
             end
 
             %%%
