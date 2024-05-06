@@ -161,8 +161,8 @@ function varargout = Baleen_SNR_Tool(varargin)
     for p = 1:numAnnotations %read in in Pamlab csv (Loop) Possibly redundant...
         file = fullfile(PAMLAB_ANNOTATIONS(p).folder,PAMLAB_ANNOTATIONS(p).name);
         PLA = readtable(file);
-        PLA.SNR = NaN(height(PLA),1); %create location to save SNR
-        PLA.SNR_Adjusted = NaN(height(PLA),1); %create location to save SNR with noise power subtracted from numerator
+        PLA.SNR_Direct = NaN(height(PLA),1); %create location to save SNR
+        PLA.SNR_Corrected = NaN(height(PLA),1); %create location to save SNR with noise power subtracted from numerator
         x = [];
         FileName =[];
 
@@ -249,7 +249,7 @@ function varargout = Baleen_SNR_Tool(varargin)
             %** signal and noise estimates
             if ~isempty(xSignal)
                 %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise);
-                [PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise, 'CapNoise',true);
+                [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = snr.calculateSNR(xSignal, xNoise, 'CapNoise',true);
             end
 
             %%%
