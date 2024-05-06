@@ -9,7 +9,7 @@ Goal: An SNR tool for use in cetacean research
 This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
 Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script<sup>*</sup> with several underlying functions. The helper script (`Baleen_SNR_Tool`) imports the output of JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the underlying functions, the first (`snr.extractSN`) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a Kaiser window-based FIR filter. Filtering is performed within `snr.extractSN` using the `snr.noDelayFilt` function, which applies the filter such that no time delays are introduced in the output. After bandpass filtering, precise start and end times of the signal are determined based on a user-specified percentage of the energy within the signal window using the function `snr.calcEng`. Noise samples are isolated relative to the energy-based start time of the signal. Ideal duration of the noise window may either be set by the user to some common value (e.g., 10 secs), or be made equal to the signal duration. If a noise window happens to includes parts of other signals that were annotated in PAMLAB, then those parts will be eliminated from the noise window (thereby shortening the noise window). The clipped and bandpassed call and noise samples are then passed to the function `snr.calculateSNR` to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.
 
-<sup>*</sup>_The helper script is actually implemented as a function that can optionally accept input arguments for greater flexibility. This will be discussed in the "Usage" section further below_.
+<sup>*</sup>_The helper script is actually implemented as a function that can optionally accept input arguments for greater flexibility. This will be discussed further in the "Usage" section below_.
 
 ## Set up
 
@@ -33,12 +33,14 @@ The tool requires inputs to calculate the SNR values. These include:
   - **Relative Start Time** - The manually selected start time in seconds of the call artefact relative to the start of the .wav file
 - A directory containing all the .wav files for which PAMLAB artefact .csv files exist. *Note: This directory can contain additional .wav files, but **must** contain all .wav files for which PAMLAB annotations exist*   
 
-## Usage
+## Running the Tool
 ### Basic Usage
 To use the tool, open MATLAB and run the file _Baleen_SNR_Tool.m_. The most basic way to run this file is by pressing the "Run" button in the MATLAB editor, or by typing `Baleen_SNR_Tool` in the Command Window. This will load the parameters in the file _SNR_PARAMS.csv_, and you will be prompted to set the input and output file paths.
 
+When running, the tool will also prompt the user to specify which species and call type to analyze. This dictates which row of the parameter file will be read. ***For each run of the SNR tool, all annotations in a CSV file will be processed using the species and call type that were specified by the user at runtime; the tool does not interpret species or call type information within the annotation files themselves.***
+
 ### Input Arguments
-Alternatively, it is possible to pass certain input arguments when calling _Baleen_SNR_Tool_ via the command window, and avoid having to set them manually or use defaults. The arguments are:
+It is possible to pass certain input arguments when calling _Baleen_SNR_Tool_ via the command window, and avoid having to set them manually or use defaults. The supported arguments are:
   - **PAMLAB_DATA_FOLDER** - Path to a folder with PAMlab output. If not specified, the tool will prompt the user to select the path manually.
   - **WAV_FILE_FOLDER** - Path to the folder containing WAV files for the dataset of interest. If not specified, the tool will prompt the user to select the path manually.
   - **OUTPUT_FOLDER_LOCATION** - Path where the tool's output folder will be created (the output folder will be called _SNR_OPUTPUT_). If not specified, the tool will prompt the user to select the path manually, or simply use the parent folder of the PAMlab data if the user cancels the prompt.
@@ -57,8 +59,35 @@ out = Baleen_SNR_Tool
 ```
 where `out` is the variable that will contain the output (it does not have to be called _out_ necessarily; give it any name you want). The output variable comes in the form of a MATLAB struct containing tables of PAMLAB annotations with the SNR data appended. Each field of the struct corresponds to one PAMLAB CSV file that was processed.
 
+## Output File
+As the tool processes each PAMLAB annotation CSV file it finds, it will create enhanced duplicates of those files that contain the SNR information appended as new columns. Those files will be saved in the folder _SNR_OUTPUT_, whose location is set by the user.
 
-## Working outline for SNR functions
+The added SNR columns are as follows:
+  - **SNR_Direct** - The "raw" SNR value in dB re. noise, calculated simply as:
+  ```matlab
+  SNR_Direct = 10*log10(powSig/powNoise)
+  ```
+  where `powSig` is the average power within the energy-based signal duration window, and `powNoise` is the average power within the preceding noise window (excluding samples that contain other annotated signals).
+  - **SNR_Corrected** - The SNR value (in dB re. noise) corrected for noise within the signal window. This value is calculated as:
+  ```matlab
+  SNR_Corrected = 10*log10((powSig - powNoise)/powNoise)
+  ```
+  where `powSig` and `powNoise` are as for _SNR_Direct_.
+  - **SNRCalc_SignalDuration** - Duration of the signal as determined based on a user-specified percentage of the total energy within the signal annotation box, in seconds.
+  - **SNRCalc_NoiseDuration** - Actual duration of the noise clip that was used to calculate SNR. Will always be equal to or less than the ideal noise duration, depending on whether the noise window contained other signals that needed to be removed or not.
+
+### Direct vs. Corrected SNR
+A true signal-to-noise ratio compares the average power of a _pure signal_ to that of noise. However, in virtually all marine mammal PAM analyses, calls are extracted from noisy time series and thus actually consist of _signal + noise mixtures_ rather than pure signals. To account for this, the tool returns a _Corrected SNR_, which subtracts the estimated average noise power from the average power within the (energy-based) signal window. The effect that this correction has on the results, compared to the direct SNR measurement, is summarized in the table below:
+
+| True Signal vs. Noise Energy | Expected SNR Value<br>(Direct) | Expected SNR Value<br>(Corrected) |
+| :--------------------------- | :----------------------------: | :-------------------------------: |
+| *Signal Only; Noise Absent*  | +Infinity | +Infinity |
+| *Signal > Noise*             | Positive  | Positive  |
+| *Signal = Noise*             | Positive  | 0         |
+| *Signal < Noise*             | Positive  | Negative  |
+| *Signal Absent; Noise Only*  | 0         | -Infinity |
+
+## [OUTDATED] Working outline for SNR functions
 
 ### **snr.extractSN**
 ```matlab
