@@ -69,7 +69,7 @@ function [xSignal, xNoise] = extractSN(varargin)
 %
 % Written by Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-05-03
+% 2024-05-07
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -144,11 +144,25 @@ function [xSignal, xNoise] = extractSN(varargin)
     end
     
     % generate shorter clip from audio vector (easier to filter)
-    %%% if it's not possible to generate the clip (i.e., because the signal
-    %%% is too close to the beginning of the sequence), then return empties
+    %%% first, check if there are enough samples to generate the full clip,
+    %%% making adjustments if needed and where possible. 
     i_clipStart = i_targetSigBoxPos(1) - numNoiseDistSamples - numIdealNoiseSamples - numClipBufferSamples;
     i_clipStop = i_targetSigBoxPos(2) + numClipBufferSamples;
-    if i_clipStart > 0 && i_clipStop <= numel(x)
+    if i_clipStop > numel(x)
+        %%% If i_clipStop is out of bounds, cancel completely
+        goodClip = false;
+    elseif i_clipStart < 1
+        %%% If i_clipStart is out of bounds, try shrinking the noise window
+        numAttemptedNoiseSamples = numIdealNoiseSamples + i_clipStart - 1;
+        i_clipStart = 1;
+        goodClip = numAttemptedNoiseSamples > 0;
+    else
+        %%% bounds of clip are within range
+        numAttemptedNoiseSamples = numIdealNoiseSamples;
+        goodClip = true;
+    end
+    
+    if goodClip
         xClip = x(i_clipStart:i_clipStop);
 
         % get signal box start/stop samples relative to clip
@@ -165,29 +179,29 @@ function [xSignal, xNoise] = extractSN(varargin)
         [ks_sigEnergyStart, ks_sigEnergyStop] = calcEng(xSigInitial,enerPerc);
         xSignal = xSigInitial(ks_sigEnergyStart:ks_sigEnergyStop);
         
-        % update number of ideal noise samples if using equal signal and
-        % noise sizes
+        % update number of attempted noise samples if using equal signal
+        % and noise sizes
         if useEqualSigNoiseSizes
-            numIdealNoiseSamples = ks_sigEnergyStop - ks_sigEnergyStart + 1;
+            numAttemptedNoiseSamples = min([ks_sigEnergyStop - ks_sigEnergyStart + 1, numAttemptedNoiseSamples]);
         end
        
         % get relative noise position
         j_targetSigEnergyPos = j_targetSigBoxPos(1) + [ks_sigEnergyStart,ks_sigEnergyStop] - 1;
-        j_noisePos = j_targetSigEnergyPos(1) - numNoiseDistSamples - [numIdealNoiseSamples, 1];
+        j_noisePos = j_targetSigEnergyPos(1) - numNoiseDistSamples - [numAttemptedNoiseSamples, 1];
         
         % isolate noise
         xNoiseInitial = xClipFilt(j_noisePos(1):j_noisePos(2));
         
         % look for non-target signals that exist in the noise window
         kn_otherSigBoxPos = j_otherSigBoxPos - j_noisePos(1) + 1;
-        otherSignalsInNoise = find(any(kn_otherSigBoxPos > 0 & kn_otherSigBoxPos <= numIdealNoiseSamples, 2));
+        otherSignalsInNoise = find(any(kn_otherSigBoxPos > 0 & kn_otherSigBoxPos <= numAttemptedNoiseSamples, 2));
         
         % remove parts of noise that contain other signals
         xNoise = xNoiseInitial;
         for ss = 1:numel(otherSignalsInNoise)
             idx_ss = otherSignalsInNoise(ss);
             kn_otherSignalStart_ss = max([1,kn_otherSigBoxPos(idx_ss,1)]);
-            kn_otherSignalStop_ss = min([kn_otherSigBoxPos(idx_ss,2),numIdealNoiseSamples]);
+            kn_otherSignalStop_ss = min([kn_otherSigBoxPos(idx_ss,2),numAttemptedNoiseSamples]);
             xNoise(kn_otherSignalStart_ss:kn_otherSignalStop_ss) = NaN;
         end
         xNoise = xNoise(~isnan(xNoise));
@@ -225,6 +239,9 @@ function [xSignal, xNoise] = extractSN(varargin)
         %}
         
     else
+        %%% if it's not possible to generate the clip (i.e., because the
+        %%% signal is too close to the beginning of the sequence), then
+        %%% return empties
         xSignal = [];
         xNoise = [];
     end
