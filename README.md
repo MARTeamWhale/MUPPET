@@ -82,7 +82,7 @@ Given a noisy time series $x$ containing a signal of interest (i.e., a detected 
 $$SNR_{Direct} = 10\log_{10}\left(\frac{P_{xs}}{P_{xn}}\right)$$
 However, since $P_{xs}$ corresponds to a signal + noise mixture, $SNR_{Direct}$ is not an accurate measure of the true SNR. To better approximate the true SNR, the corrected value is calculated by subtracting the estimated noise power from the power of the measured signal:
 $$SNR_{Corrected} = 10\log_{10}\left(\frac{P_{xs} - P_{xn}}{P_{xn}}\right)$$
-The table below compares the expected SNR values for the direct vs. corrected calculations based on how the energy of the true, pure signal compares to that of the noise.
+The table below shows how the expected SNR value differs between the direct vs. corrected calculations, based on how the energy of the true (pure) signal compares to that of the noise.
 
 | True Signal vs. Noise Energy | Expected SNR Value<br>(Direct) | Expected SNR Value<br>(Corrected) |
 | :--------------------------- | :----------------------------: | :-------------------------------: |
