@@ -9,7 +9,7 @@ Goal: An SNR tool for use in cetacean research
 This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
 Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script<sup>*</sup> with several underlying functions. The helper script (`Baleen_SNR_Tool`) imports the output of JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the underlying functions, the first (`snr.extractSN`) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a Kaiser window-based FIR filter. Filtering is performed within `snr.extractSN` using the `snr.noDelayFilt` function, which applies the filter such that no time delays are introduced in the output. After bandpass filtering, precise start and end times of the signal are determined based on a user-specified percentage of the energy within the signal window using the function `snr.calcEng`. Noise samples are isolated relative to the energy-based start time of the signal. Ideal duration of the noise window may either be set by the user to some common value (e.g., 10 secs), or be made equal to the signal duration. If a noise window happens to includes parts of other signals that were annotated in PAMLAB, then those parts will be eliminated from the noise window (thereby shortening the noise window). The clipped and bandpassed call and noise samples are then passed to the function `snr.calculateSNR` to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.
 
-<sup>*</sup>_The helper script is actually implemented as a function that can optionally accept input arguments for greater flexibility. This will be discussed further in the "Usage" section below_.
+<sup>*</sup>_The helper script is actually implemented as a function that can optionally accept input arguments for greater flexibility. This will be discussed further in the section "Running the Tool" below_.
 
 ## Set up
 
@@ -59,33 +59,30 @@ out = Baleen_SNR_Tool
 ```
 where `out` is the variable that will contain the output (it does not have to be called _out_ necessarily; give it any name you want). The output variable comes in the form of a MATLAB struct containing tables of PAMLAB annotations with the SNR data appended. Each field of the struct corresponds to one PAMLAB CSV file that was processed.
 
-## Output File [WIP]
+## Output File
 As the tool processes each PAMLAB annotation CSV file it finds, it will create enhanced duplicates of those files that contain the SNR information appended as new columns. Those files will be saved in the folder _SNR_OUTPUT_, whose location is set by the user.
 
-The added SNR columns are as follows:
-  - **SNR_Direct** - The "raw" SNR value in dB re. noise (see "SNR Calculation"), calculated simply as:
-  ```matlab
-  SNR_Direct = 10*log10(powSig/powNoise)
-  ```
-  where `powSig` is the average power within the energy-based signal duration window, and `powNoise` is the average power within the preceding noise window (excluding samples that contain other annotated signals).
-  - **SNR_Corrected** - The SNR value (in dB re. noise) corrected for noise within the signal window (see "SNR Calculation"). This value is calculated as:
-  ```matlab
-  SNR_Corrected = 10*log10((powSig - powNoise)/powNoise)
-  ```
-  where `powSig` and `powNoise` are as for _SNR_Direct_.
-  - **SNRCalc_SignalDuration** - Duration of the signal as determined based on a user-specified percentage of the total energy within the signal annotation box, in seconds.
-  - **SNRCalc_NoiseDuration** - Actual duration of the noise clip that was used to calculate SNR. Will always be equal to or less than the ideal noise duration, depending on whether the noise window contained other signals that needed to be removed or not.
+The added SNR columns are:
+  - **SNR_Direct** - The "raw", uncorrected SNR value in dB re. noise power (see "SNR Calculation")
+  - **SNR_Corrected** - The SNR value (in dB re. noise power) corrected for noise within the signal window (see "SNR Calculation")
+  - **SNRCalc_SignalDuration** - Duration of the signal window used in the SNR calculations, as determined based on a user-specified percentage of the total energy within the signal annotation box, in seconds.
+  - **SNRCalc_NoiseDuration** - Actual duration of the noise clip that was used to calculate SNR. This will always be equal to or less than the ideal noise duration, depending on whether the noise window contained other signals that needed to be removed or not.
 
-## SNR Calculation [WIP]
-The tool calculates signal-to-noise ratios as follows:
+## SNR Calculation
+The tool calculates signal-to-noise ratios in Decibels re. noise power, based on the following equations:
 $$SNR = 10\log_{10}\left(\frac{P_{signal}}{P_{noise}}\right)$$
-where $P_{signal}$ and $P_{noise}$ are the average power of signal and noise, respectively. Average power for a sampled time series $x$ is calculated as:
-$$P = \frac{1}{N}\displaystyle\sum_{i=1}^{N} x_{i}^{2}$$
-where $N$ is the total number of samples, and $i$ is the sample index.
-
+where $P_{signal}$ and $P_{noise}$ are the average power of signal and noise, respectively. The average power $P$ for a sampled time series $x$ can be calculated as:
+$$P = \frac{1}{N}\displaystyle\sum_{i=1}^{N} x(i)^{2}$$
+where $N$ is the total number of samples in $x$, and $i$ is the sample index.
 
 ### Direct vs. Corrected SNR
-A true signal-to-noise ratio compares the average power of a _pure signal_ to that of noise. However, in virtually all marine mammal PAM analyses, calls are extracted from noisy time series and thus actually consist of _signal + noise mixtures_ rather than pure signals. To account for this, the tool returns a _Corrected SNR_ value, which subtracts the estimated average noise power from the average power within the (energy-based) signal window. The effect that this correction has on the results, compared to the direct SNR measurement, is summarized in the table below:
+A true signal-to-noise ratio compares the average power of a _pure signal_ to that of noise. However, in virtually all marine mammal PAM analyses, calls are extracted from noisy time series and thus actually consist of _signal + noise mixtures_ rather than pure signals. To account for this, the tool returns a _Corrected SNR_ value in addition to the direct (uncorrected) value.
+
+Given a noisy time series $x$ containing a signal of interest (i.e., a detected whale call), let $P_{xs}$ be the average power of the region in $x$ containing the signal, and $P_{xn}$ be the average power of a region in $x$ with no signal (i.e, noise). Thus, $P_{xs}$ is the power of a signal + noise mixture, and $P_{xn}$ is an estimate of noise power only. The direct SNR is calculated as:
+$$SNR_{Direct} = 10\log_{10}\left(\frac{P_{xs}}{P_{xn}}\right)$$
+However, since $P_{xs}$ corresponds to a signal + noise mixture, $SNR_{Direct}$ is not an accurate measure of the true SNR. To better approximate the true SNR, the corrected value is calculated by subtracting the estimated noise power from the power of the measured signal:
+$$SNR_{Corrected} = 10\log_{10}\left(\frac{P_{xs} - P_{xn}}{P_{xn}}\right)$$
+The table below compares the expected SNR values for the direct vs. corrected calculations based on how the energy of the true, pure signal compares to that of the noise.
 
 | True Signal vs. Noise Energy | Expected SNR Value<br>(Direct) | Expected SNR Value<br>(Corrected) |
 | :--------------------------- | :----------------------------: | :-------------------------------: |
@@ -95,69 +92,11 @@ A true signal-to-noise ratio compares the average power of a _pure signal_ to th
 | *Signal < Noise*             | Positive  | Negative  |
 | *Signal Absent; Noise Only*  | 0         | -Infinity |
 
+### Accounting for Inaccurate Noise Power Estimates
+The average power of noise during a signal of interest can only be estimated. The SNR tool performs this estimate by taking a small clip of noise preceeding the signal. This assumes that the clip is representative of the noise coinciding with the signal. While this is a reasonable assumption in most cases, it may not always hold. There can be situations where the noise within the noise clip is contaminanted by other transient sounds, or is simply not representative of the noise level during the signal.
 
+The SNR tool attempts to reduce poor noise power estimates caused by other signals by removing any annotated signals that may exist within the noise clip. However, the key here is that those signals must have been annotated by an analyst and are included in the PAMLAB CSV files. If there are transient sounds that were not annotated, then those will still be included in the noise clips and result in inflated estimates of noise power. Analysts should also be mindful of this signal removal feature when deciding where to set the start and stop bounds of their annotation boxes in PAMLAB.
 
+Inflated noise power estimates can result in situations where the noise power appears greater than the power of signal + noise, which is of course not possible in reality and would produce anomalous SNR values (i.e., negative values for the direct SNR, and complex numbers for the corrected SNR). To prevent this from happening, the tool will limit noise power estimates such that any value greater than the signal + noise power will be capped at the signal + noise power level. Thus, any situation where the estimated noise power is excessively large will produce values of 0 for the direct SNR, and `-Inf` for the corrected SNR. 
 
-
-
-
-## [OUTDATED] Working outline for SNR functions
-
-### **snr.extractSN**
-```matlab
-[xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, clipBufferSize, dFilter, units)
-```
-**Purpose**
-Extract a vector of samples from an acoustic timeseries coresponding to a defined start and stop time. Additionally, extract a vector of samples of the same length some defined distance before the signal of interest, to represent a sample of background noise. The interval seperating the signal samples and the noise samples is user-defined and dependant on the acoustic properties of the signal. Prior to signal and noise extraction, a digital filter (typically a bandpass FIR filter) is applied to a truncated version of the input timeseries. 
-
-**Inputs**
-- x = data vector
-- fs = sampling rate
-- sigStart = signal start seconds or sample
-- sigStop = signal stop seconds or sample
-- noiseDist = distance from signal from which to sample noise, in seconds or samples
-- clipBufferSize = amount of buffer before and after the noise and signal, respectively, to determine the start and end points of the truncated clip that will later be filtered; may be in seconds or samples
-- dFilter = filter that will be applied to the truncated clip, in the form of a `digitalFilter` object from the Signal Processing Toolbox
-- units = string specifying if start, stop, noise distance, and clip buffer inputs represent seconds or samples
-
-**Outputs**
-- xSignal = extracted signal samples
-- xNoise = extracted noise samples
-
-### **snr.calculateSNR**
-```matlab
-[snr_dB] = calculateSNR(xSignal, xNoise)
-[snr_dB] = calculateSNR(xSignal, xNoise, 'SubtractNoise',Value)
-```
-**Purpose**
-Calculate the signal to noise ratio given pre-isolated windows of signal and noise. This is implemented as a RMS-based average power calculation.
-
-**Inputs**
-- xSignal = signal samples
-- xNoise = noise samples
-- 'SubtractNoise',Value = optional Name-Value pair that specifies whether or not to subtract noise power from the power derived from the signal input when calculating SNR. Subtracting noise power is meant to provide output that is more aligned with the true definition of SNR when the signal input actually represents a signal + noise mixture (which is almost always the case in any PAM analysis, and always will be the case using this SNR tool). *Value* is either `true` or `false`. The effect that this parameter has on the output SNR value for different levels of noise versus true signal energy is summarized in the table below:
-
-| True Signal vs. Noise Energy | Expected SNR Value with<br>'SubtractNoise' = `false` | Expected SNR Value with<br>'SubtractNoise' = `true` |
-| :--------------------------- | :--------------------------------------------------: | :-------------------------------------------------: |
-| *Noise Absent; Signal Only*  | +Infinity | +Infinity |
-| *Signal > Noise*             | Positive  | Positive  |
-| *Signal = Noise*             | Positive  | 0         |
-| *Signal < Noise*             | Positive  | Negative  |
-| *Signal Absent; Noise Only*  | 0         | -Infinity |
-
-**Outputs**
-- snr_dB = Signal to Noise Ratio value (dB)
-
-### **snr.noDelayFilt**
-```matlab
-[xFilt] = noDelayFilt(dFilter, x)
-```
-**Purpose**
-Filter a signal vector *x* using a `digitalFilter` object from the Signal Processing Toolbox, compensating for group delay introduced by the filter. This function only works if the delay is not frequency-dependent (usually the case with FIR filters). It will generally NOT work with IIR filters like the Butterworth filter - for those types of filters, the best option is to use MATLAB's `filtfilt`.
-
-**Inputs**
-- dFilter = filter to apply to the signal, in the form of a `digitalFilter` object from the Signal Processing Toolbox
-- x = data vector
-
-**Outputs**
-- xFilt = filtered data vector
+If there are not enough samples available to extract a reliable noise clip for a given signal, then the tool will return `NaN` for both the direct and corrected SNR values for that signal.
