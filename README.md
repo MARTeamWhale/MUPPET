@@ -19,7 +19,7 @@ Initial development was focused on Blue Whale audible calls. The tool currently 
 ### Requirements
 
 The tool requires inputs to calculate the SNR values. These include:
-  -  SNR_PARAMS.csv: a parameter file which contains the filtering and noise presets for each specie's call type. This file has values for:
+  -  SNR_PARAMS.csv: a parameter file which contains the filtering and noise presets for each species' call type. This file has values for:
       - **Species** - The species of interest (e.g. Blue Whale)
       - **Call_Type** - The call type (e.g. Audible, Tonal, etc...) 
       - **Lower_Passband_Frequency** - Lower bound of the bandpass filter before which frequencies become attenuated (Hz). This value should correspond to the lowest frequency of interest.
@@ -66,14 +66,14 @@ The added SNR columns are:
   - **SNR_Direct** - The "raw", uncorrected SNR value in dB re. noise power (see "SNR Calculation")
   - **SNR_Corrected** - The SNR value (in dB re. noise power) corrected for noise within the signal window (see "SNR Calculation")
   - **SNRCalc_SignalDuration** - Duration of the signal window used in the SNR calculations, as determined based on a user-specified percentage of the total energy within the signal annotation box, in seconds.
-  - **SNRCalc_NoiseDuration** - Actual duration of the noise clip that was used to calculate SNR. This will always be equal to or less than the ideal noise duration, depending on whether the noise window contained other signals that needed to be removed or not.
+  - **SNRCalc_NoiseDuration** - Actual duration of the noise clip that was used to calculate SNR. This will always be equal to or less than the ideal noise duration, depending on whether the noise window contained other signals that needed to be removed or not, or if there were not enough samples in the time series to generate the ideal noise clip. ***Be wary of noise durations that are extremely small (e.g., < 1 sec). In such cases, the noise power estimate may not be an accurate representation of the noise power coinciding with the signal, which in turn means that the SNR estimates may be inaccurate.***
 
 ## SNR Calculation
 The tool calculates signal-to-noise ratios in Decibels re. noise power, based on the following equations:
 $$SNR = 10\log_{10}\left(\frac{P_{signal}}{P_{noise}}\right)$$
 where $P_{signal}$ and $P_{noise}$ are the average power of signal and noise, respectively. The average power $P$ for a sampled time series $x$ can be calculated as:
 $$P = \frac{1}{N}\displaystyle\sum_{i=1}^{N} x(i)^{2}$$
-where $N$ is the total number of samples in $x$, and $i$ is the sample index.
+where $N$ is the total number of samples in $x$, and $i$ is the sample number.
 
 ### Direct vs. Corrected SNR
 A true signal-to-noise ratio compares the average power of a _pure signal_ to that of noise. However, in virtually all marine mammal PAM analyses, calls are extracted from noisy time series and thus actually consist of _signal + noise mixtures_ rather than pure signals. To account for this, the tool returns a _Corrected SNR_ value in addition to the direct (uncorrected) value.
@@ -99,4 +99,4 @@ The SNR tool attempts to reduce poor noise power estimates caused by other signa
 
 Inflated noise power estimates can result in situations where the noise power appears greater than the power of signal + noise, which is of course not possible in reality and would produce anomalous SNR values (i.e., negative values for the direct SNR, and complex numbers for the corrected SNR). To prevent this from happening, the tool will limit noise power estimates such that any value greater than the signal + noise power will be capped at the signal + noise power level. Thus, any situation where the estimated noise power is excessively large will produce values of 0 for the direct SNR, and `-Inf` for the corrected SNR. 
 
-If there are not enough samples available to extract a reliable noise clip for a given signal, then the tool will return `NaN` for both the direct and corrected SNR values for that signal.
+If there are not enough samples available to extract a noise clip for a given signal (i.e., because the signal is too close to the beginning of the time series), then the tool will return `NaN` for both the direct and corrected SNR values for that signal.
