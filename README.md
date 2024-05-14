@@ -1,9 +1,9 @@
-# Baleen_SNR_Tool
+# MUPPET
 ## Work in progress  
 Developed by Wilfried Beslin and Mike Adams  
 Maritimes Team Whale
 -------------------
-Goal: An SNR tool for use in cetacean research
+Goal: An tool for use in cetacean research
 
 ## Introduction
 This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
