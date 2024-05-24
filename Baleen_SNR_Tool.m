@@ -38,7 +38,7 @@ function varargout = Baleen_SNR_Tool(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-05-06
+% 2024-05-23
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -232,24 +232,33 @@ function varargout = Baleen_SNR_Tool(varargin)
             PLA_Stop_other = PLA.annotation_relative_end_time_sec(others_in_wav);
 
             %%% extract bandpass-filtered signal and noise samples
-            %%{
+            [xClip, sigPos, noisePos, tClipStart] = snr.isolateFilteredSNClip(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
+                'NoiseDistance', NoiseDistance,...
+                'IdealNoiseSize', NoiseSize,...
+                'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
+                'EnergyPercent', EnergyPercent);
+            %** old method
+            %{
             [xSignal, xNoise] = snr.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
                 'NoiseDistance', NoiseDistance,...
                 'IdealNoiseSize', NoiseSize,...
                 'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
                 'EnergyPercent', EnergyPercent);
             %}
-            %** Testing defaults
-            %[xSignal, xNoise] = snr.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter);
-            %** legacy code
-            %[xSignal, xNoise] = snr.extractSN_legacy(x, Fs, PLA_Start, PLA_Stop, NoiseDistance, BP_buffer, bandpass_filter, Units);
-
+            
             %%% calculate SNR 
             %%% (leave NaN if not possible because signal is too close to 
             %%% endpoints)
-            %** Consider adding to the output the final duration of the
-            %** signal and noise estimates
-            if ~isempty(xSignal)
+            %if ~isempty(xSignal)
+            if ~isempty(xClip)
+                %%% extract signal and noise from clip.
+                %%% Separated noise sections will be concatenated.
+                xSignal = xClip(sigPos(1):sigPos(2));
+                xNoise = [];
+                for ii = 1:size(noisePos,1)
+                    xNoise = [xNoise; xClip(noisePos(ii,1):noisePos(ii,2))];
+                end
+                
                 %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise);
                 [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = snr.calculateSNR(xSignal, xNoise, 'CapNoise',true);
                 PLA.SNRCalc_SignalDuration(w) = numel(xSignal)/Fs;

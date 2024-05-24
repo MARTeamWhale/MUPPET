@@ -1,4 +1,4 @@
-function [xSignal, xNoise] = extractSN(varargin)
+function [xClipFilt, j_targetSigEnergyPos, j_noisePos, tClipStart] = isolateFilteredSNClip(varargin)
 %
 % Isolate signal and associated noise samples from a larger audio time
 % series vector, given a pre-determined signal location. Works by isolating
@@ -11,8 +11,8 @@ function [xSignal, xNoise] = extractSN(varargin)
 % consist of a truncated and possibly concatenated noise vector.
 %
 % SYNTAX:
-%   [xSignal, xNoise] = extractSN(x, fs, targetSigBoxPos, dFilter)
-%   [__] = extractSN(__, Name,Value)
+%   [xClipFilt, j_sigEnergyPos, j_noisePos, tClipStart] = isolateFilteredSNClip(x, fs, targetSigBoxPos, dFilter)
+%   [__] = isolateFilteredSNClip(__, Name,Value)
 %
 % INPUT ARHUMENTS:
 %   Required
@@ -58,26 +58,31 @@ function [xSignal, xNoise] = extractSN(varargin)
 %
 % OUTPUT ARGUMENTS:
 %   .......................................................................
-%   "xSignal" - vector of bandpass-filtered target signal samples
+%   "xClipFilt" - vector of bandpass-filtered audio subclip samples
+%       containing signal and noise
 %   .......................................................................
-%   "xNoise" - vector of bandpass-filtered noise samples. May consist of
-%       blocks of noise at different points in the time series concatenated
-%       together, if the noise window included any contaminating signals 
-%       that the user requested to remove.
+%   "j_sigEnergyPos" - 2-element vector containing the start and stop
+%       samples of the target signal based on cumulative energy threshold 
+%       duration
+%   .......................................................................
+%   "j_noisePos" - N-by-2 matrix containing the start and stop samples
+%       of signal-free sections within a noise window preceding the signal 
+%   .......................................................................
+%   "tClipStart" - start time of the subclip, in seconds
 %   .......................................................................
 %
 %
 % Written by Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-05-07
+% 2024-05-24
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
 % - [Wilfried] Things I might do:
-%   -- add noise range and/or duration as output arguments
+%   -- [DONE] add noise range and/or duration as output arguments
 %   -- remove buffer size as an argument and calculate it automatically
-%   -- shrink the noise window if there is not enough space in the time
-%       series to isolate a clip with the ideal noise size
+%   -- [DONE] shrink the noise window if there is not enough space in the 
+%       time series to isolate a clip with the ideal noise size
 %   -- extract noise samples that occur after the signal, either to
 %       complement the preceding noise and give more samples to work with,
 %       or as an alternative in case there is not enough space to isolate
@@ -177,7 +182,7 @@ function [xSignal, xNoise] = extractSN(varargin)
         % cumulative energy
         xSigInitial = xClipFilt(j_targetSigBoxPos(1):j_targetSigBoxPos(2));
         [ks_sigEnergyStart, ks_sigEnergyStop] = calcEng(xSigInitial,enerPerc);
-        xSignal = xSigInitial(ks_sigEnergyStart:ks_sigEnergyStop);
+        %xSignal = xSigInitial(ks_sigEnergyStart:ks_sigEnergyStop);
         
         % update number of attempted noise samples if using equal signal
         % and noise sizes
@@ -185,10 +190,42 @@ function [xSignal, xNoise] = extractSN(varargin)
             numAttemptedNoiseSamples = min([ks_sigEnergyStop - ks_sigEnergyStart + 1, numAttemptedNoiseSamples]);
         end
        
-        % get relative noise position
+        % get signal and initial noise position relative to clip
         j_targetSigEnergyPos = j_targetSigBoxPos(1) + [ks_sigEnergyStart,ks_sigEnergyStop] - 1;
-        j_noisePos = j_targetSigEnergyPos(1) - numNoiseDistSamples - [numAttemptedNoiseSamples, 1];
+        j_noisePosInitial = j_targetSigEnergyPos(1) - numNoiseDistSamples - [numAttemptedNoiseSamples, 1];
         
+        % get indices of clean (i.e., signal-free) noise sections.
+        %%% This uses a loopless approach with logical indices and
+        %%% cumulative sums.
+        
+        %%% start by finding where noise occurs
+        numClipSamples = numel(xClipFilt);
+        clipIdcs = 1:numClipSamples;
+        isInNoiseWin = clipIdcs >= j_noisePosInitial(1) & clipIdcs <= j_noisePosInitial(end);
+        
+        %%% find where non-target signals ("contaminants") occur.
+        %%% Adjust the j-indices of the other signals if they are out of
+        %%% bounds, or this won't work.
+        j_otherSigBoxPosClipped = j_otherSigBoxPos(~all(j_otherSigBoxPos < 1, 2) & ~all(j_otherSigBoxPos > numClipSamples, 2), :);
+        j_otherSigBoxPosClipped(j_otherSigBoxPosClipped < 1) = 1;
+        j_otherSigBoxPosClipped(j_otherSigBoxPosClipped > numClipSamples) = numClipSamples;
+        numContaminants = size(j_otherSigBoxPosClipped,1);
+        contaminantPosAnalVec = cumsum(ismember(clipIdcs, j_otherSigBoxPosClipped+repmat([0,1],numContaminants,1))); % every odd number in this sequence indicates the presence of a signal
+        isContaminant = rem(contaminantPosAnalVec, 2) ~= 0;
+        
+        %%% find sections of noise that are free of signal and create a
+        %%% matrix of start/stop positions for each section
+        isCleanNoise = isInNoiseWin & ~isContaminant;
+        j_noisePos = [...
+            find(isCleanNoise-[0,isCleanNoise(1:end-1)] > 0)',...
+            find([isCleanNoise(2:end),0]-isCleanNoise < 0)'...
+            ];
+        
+        % get start time of clip
+        tClipStart = i_clipStart/fs;
+        
+        %** old code for isolating noise
+        %{
         % isolate noise
         xNoiseInitial = xClipFilt(j_noisePos(1):j_noisePos(2));
         
@@ -205,9 +242,36 @@ function [xSignal, xNoise] = extractSN(varargin)
             xNoise(kn_otherSignalStart_ss:kn_otherSignalStop_ss) = NaN;
         end
         xNoise = xNoise(~isnan(xNoise));
+        %}
+        
+        %** DEBUG PLOT
+        %{
+        if size(j_otherSigBoxPosClipped, 1) > 0
+            tClip = (((1:numel(xClip))-1)./fs)';
+            figure;
+            ax = axes();
+            ax.NextPlot = 'add';
+            %plot(ax, tClip, xClip)
+            plot(ax, tClip, xClipFilt)
+            plot(ax, tClip(j_targetSigBoxPos(1):j_targetSigBoxPos(2))', xClipFilt(j_targetSigBoxPos(1):j_targetSigBoxPos(2)));
+            plot(ax, tClip(j_targetSigEnergyPos(1):j_targetSigEnergyPos(2))', xClipFilt(j_targetSigEnergyPos(1):j_targetSigEnergyPos(2)))
+            plot(ax, tClip(isInNoiseWin)', xClipFilt(isInNoiseWin));
+            if sum(isContaminant) > 0
+                stem(ax, tClip(isContaminant)', xClipFilt(isContaminant));
+            else
+                stem(ax, NaN, NaN);
+            end
+            stem(ax, tClip(isCleanNoise)', xClipFilt(isCleanNoise));
+            %legend(ax, {'Unfiltered Clip', 'Filtered Clip', 'Signal Box', 'Energy Signal', 'Noise', 'Intra-Noise Signal'})
+            legend(ax, {'Full Filtered Clip', 'Signal Box', 'Energy Signal', 'Noise', 'Contaminating Signal', 'Signal-Free Noise'})
+            grid(ax, 'on')
+            box(ax, 'on')
+            keyboard
+        end
+        %}
         
 
-        %** DEBUG PLOT
+        %** DEBUG PLOT (OLD)
         %{
         %if numel(otherSignalsInNoise) > 0
             j_intraNoiseSigs = [];
@@ -241,8 +305,10 @@ function [xSignal, xNoise] = extractSN(varargin)
     else
         %%% if it's not possible to generate the clip (i.e., because the
         %%% signal is too close to the beginning of the sequence), then
-        %%% return empties
-        xSignal = [];
-        xNoise = [];
+        %%% return empties and NaNs
+        xClipFilt = [];
+        j_targetSigEnergyPos = double.empty(0,2);
+        j_noisePos = double.empty(0,2);
+        tClipStart = NaN;
     end
 end
