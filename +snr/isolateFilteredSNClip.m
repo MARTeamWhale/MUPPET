@@ -80,7 +80,11 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, tClipStart] = isolateFilt
 % DEV NOTES:
 % - [Wilfried] Things I might do:
 %   -- [DONE] add noise range and/or duration as output arguments
-%   -- remove buffer size as an argument and calculate it automatically
+%   -- [ABANDONED] remove buffer size as an argument and calculate it 
+%       automatically
+%           --- THIS IS NO LONGER RECOMMENDED, BECAUSE STFT PARAMETERS WILL
+%           BE LIMITED BY BUFFER SIZE, AND THUS BUFFER SHOULD BE FLEXIBLE 
+%           TO TAKE THIS INTO ACCOUNT
 %   -- [DONE] shrink the noise window if there is not enough space in the 
 %       time series to isolate a clip with the ideal noise size
 %   -- extract noise samples that occur after the signal, either to

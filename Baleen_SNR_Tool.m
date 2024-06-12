@@ -38,7 +38,7 @@ function varargout = Baleen_SNR_Tool(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-05-23
+% 2024-06-11
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -214,7 +214,31 @@ function varargout = Baleen_SNR_Tool(varargin)
                         'DesignMethod', 'kaiserwin',...
                         'SampleRate', Fs...
                         );
-                end    
+                end
+                
+                %%% define spectrogram parameters (TEMPORARILY HARDCODED)
+                spectype = 'custom'; % CHANGE AS NEEDED
+                switch spectype
+                    case 'MERIDIAN'
+                        %%%%%% based on MERIDIAN settings for NARW;
+                        %%%%%% tends to be very hi-res for blue calls, and
+                        %%%%%% slow to run/render
+                        stftWinSize = 2^nextpow2(round(0.256*Fs));
+                        stftOverlap = stftWinSize - round(0.032*Fs);
+                        stftN = stftWinSize;
+                    case 'longcalls'
+                        %%%%%% based on PAMlab settings for long calls;
+                        %%%%%% very coarse temporal resolution
+                        stftWinSize = round(2*Fs);
+                        stftOverlap = stftWinSize - round(0.5*Fs);
+                        stftN_candidates = 2.^(nextpow2(Fs/0.4) + [-1,0]);
+                        stftN = interp1(stftN_candidates, stftN_candidates, Fs/0.4, 'nearest');
+                    case 'custom'
+                        %%%%%% finer resolution than longcalls
+                        stftWinSize = 2^nextpow2(round(Fs));
+                        stftOverlap = stftWinSize - round(0.1*Fs);
+                        stftN = stftWinSize;
+                end
             end
 
             %%% Get Start of annotation and End of annotation
@@ -231,12 +255,18 @@ function varargout = Baleen_SNR_Tool(varargin)
             PLA_Start_other = PLA.annotation_relative_start_time_sec(others_in_wav);
             PLA_Stop_other = PLA.annotation_relative_end_time_sec(others_in_wav);
 
-            %%% extract bandpass-filtered signal and noise samples
+            %%% extract bandpass-filtered signal and noise samples.
+            %%% NOTE: the number of buffer samples at the ends of the clip
+            %%% must be large enough to accommodate STFT windows for
+            %%% generation of spectrograms and Welch spectra; thus, buffer
+            %%% size is dependent on STFT parameters.
             [xClip, sigPos, noisePos, tClipStart] = snr.isolateFilteredSNClip(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
                 'NoiseDistance', NoiseDistance,...
                 'IdealNoiseSize', NoiseSize,...
                 'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
-                'EnergyPercent', EnergyPercent);
+                'EnergyPercent', EnergyPercent,...
+                'ClipBufferSize', (stftWinSize*0.75)/Fs ... % the factor of 75% is probably overkill, but will stick with this for now
+                );
             %** old method
             %{
             [xSignal, xNoise] = snr.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
@@ -246,7 +276,7 @@ function varargout = Baleen_SNR_Tool(varargin)
                 'EnergyPercent', EnergyPercent);
             %}
             
-            %%% calculate SNR 
+            %%% calculate SNR and other features
             %%% (leave NaN if not possible because signal is too close to 
             %%% endpoints)
             %if ~isempty(xSignal)
@@ -263,6 +293,28 @@ function varargout = Baleen_SNR_Tool(varargin)
                 [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = snr.calculateSNR(xSignal, xNoise, 'CapNoise',true);
                 PLA.SNRCalc_SignalDuration(w) = numel(xSignal)/Fs;
                 PLA.SNRCalc_NoiseDuration(w) = numel(xNoise)/Fs;
+                
+                %%% get spectrogram and full PSD estimate of signal
+                [spectrogram_data, welchPSD_data] = snr.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN);
+                
+                %%% trace peak frequencies
+                [psd_track, i_track] = max(spectrogram_data.psd, [], 1);
+                f_track = spectrogram_data.f(i_track);
+                
+                %** DEBUG
+                %{
+                %fig = figure();
+                ax = gca;
+                cla(ax);
+                surf(spectrogram_data.t-mean(diff(spectrogram_data.t))/2, spectrogram_data.f, spectrogram_data.psd-max(spectrogram_data.psd(:)), 'EdgeColor','none')
+                hold on
+                plot3(spectrogram_data.t', f_track, ones(size(f_track)), 'wo--')
+                axis(ax, 'xy');
+                view(ax, 0, 90);
+                ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
+                keyboard
+                %close(fig);
+                %}
             end
 
             %%%

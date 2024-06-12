@@ -80,7 +80,7 @@ function [spectrogram_data, welchPSD_data] = computeSTFT(varargin)
         'psd', psd_welch);
     
     % DEBUG PLOT
-    %%{
+    %{
     fMax_plot = 300;
     fKeep_plot = spectrogram_data.f <= fMax_plot;
     figure;
