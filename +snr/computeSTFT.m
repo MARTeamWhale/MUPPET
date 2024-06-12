@@ -1,10 +1,16 @@
-function [spectrogram_data, welchPSD_data] = computeSTFT(varargin)
+function [t_stft, f, psdm, psd] = computeSTFT(varargin)
 %
 % Calculates the spectrogram of a given signal via the short-time Fourier
 % transform (STFT). Also returns the Welch power spectral density (PSD)
 % estimate, which is essentially just the average of STFT bins.
 %
 % OUTPUT:
+% f = STFT frequency vector
+% t_stft = STFT time vector
+% psdm = matrix of power spectral density values over time (i.e., 
+%   spectrogram magnitdes)
+% psd = Welch power spectral density estimate across the whole signal
+
 % spectrogram_data = struct with spectrogram data;
 %   fields are "t", "f", and "psd"
 %
@@ -12,7 +18,7 @@ function [spectrogram_data, welchPSD_data] = computeSTFT(varargin)
 %   fields are "f" and "psd"
 %
 % Written by Wilfried Beslin
-% Last Updated 2024-05-21 by Wilfried Beslin
+% Last Updated 2024-06-12 by Wilfried Beslin
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -60,48 +66,43 @@ function [spectrogram_data, welchPSD_data] = computeSTFT(varargin)
     winVec = feval(winType, winSize);
     
     % calculate spectrogram and save to output
-    [~, f_gram, t_gram, psd_gram] = spectrogram(xSTFT, winVec, nOverlap, nfft, fs);
+    [~, f, t_stft, psdm] = spectrogram(xSTFT, winVec, nOverlap, nfft, fs);
     %%% The "spectrogram" function returns times corresponding to the
     %%% midpoint of the spectrogram bins, which is what we want. However,
     %%% since the input vector began a little before the signal, the bin
     %%% midpoint times should be adjusted to correct for this, such that
     %%% they are relative to the start of the signal. This correction
     %%% should make them start at about t=0.
-    t_gram = t_gram - ((sigPos(1) - i_stftStart)/fs);
-    spectrogram_data = struct(...
-        'f', f_gram,...
-        't', t_gram,...
-        'psd', psd_gram);
+    t_stft = t_stft - ((sigPos(1) - i_stftStart)/fs);
     
     % calculate Welch PSD estimate and save to output
-    [psd_welch, f_welch] = pwelch(xSTFT, winVec, nOverlap, nfft, fs);
-    welchPSD_data = struct(...
-        'f', f_welch,...
-        'psd', psd_welch);
+    psd = mean(psdm, 2);
+    %[psd_welch, f_welch] = pwelch(xSTFT, winVec, nOverlap, nfft, fs);
     
     % DEBUG PLOT
     %{
     fMax_plot = 300;
-    fKeep_plot = spectrogram_data.f <= fMax_plot;
+    fKeep_plot = f <= fMax_plot;
     figure;
     ax_gram = subplot(1, 2, 1);
     ax_welch = subplot(1, 2, 2);
     
     %%% plot spectrogram as waterfall plot with each strip corresponding to
     %%% a time bin
-    [T, F] = meshgrid(spectrogram_data.t, spectrogram_data.f(fKeep_plot));
-    waterfall(ax_gram, T', F', spectrogram_data.psd(fKeep_plot,:)');
+    [T, F] = meshgrid(t_stft, f(fKeep_plot));
+    waterfall(ax_gram, T', F', psdm(fKeep_plot,:)');
     xlabel(ax_gram, 'Time [s]')
     ylabel(ax_gram, 'Frequency [Hz]')
     zlabel(ax_gram, 'PSD')
     title(ax_gram, 'Spectrogram');
     
     %%% plot Welch PSD
-    plot(ax_welch, welchPSD_data.f(fKeep_plot), welchPSD_data.psd(fKeep_plot))
+    plot(ax_welch, f(fKeep_plot), psd(fKeep_plot))
     xlabel(ax_welch, 'Frequency [Hz]')
     ylabel(ax_welch, 'PSD')
     title(ax_welch, 'Welch PSD Estimate')
     grid(ax_welch, 'on')
+    keyboard
     %}
     
 end

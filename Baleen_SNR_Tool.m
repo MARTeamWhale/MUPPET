@@ -38,7 +38,7 @@ function varargout = Baleen_SNR_Tool(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-06-11
+% 2024-06-12
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -295,20 +295,20 @@ function varargout = Baleen_SNR_Tool(varargin)
                 PLA.SNRCalc_NoiseDuration(w) = numel(xNoise)/Fs;
                 
                 %%% get spectrogram and full PSD estimate of signal
-                [spectrogram_data, welchPSD_data] = snr.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN);
+                [t_stft, f_stft, psdm, psd] = snr.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN);
                 
                 %%% trace peak frequencies
-                [psd_track, i_track] = max(spectrogram_data.psd, [], 1);
-                f_track = spectrogram_data.f(i_track);
+                [psd_track, i_track] = max(psdm, [], 1);
+                f_track = f_stft(i_track);
                 
                 %** DEBUG
                 %{
                 %fig = figure();
                 ax = gca;
                 cla(ax);
-                surf(spectrogram_data.t-mean(diff(spectrogram_data.t))/2, spectrogram_data.f, spectrogram_data.psd-max(spectrogram_data.psd(:)), 'EdgeColor','none')
+                surf(t_stft-mean(diff(t_stft))/2, f_stft, psdm-max(psdm(:)), 'EdgeColor','none')
                 hold on
-                plot3(spectrogram_data.t', f_track, ones(size(f_track)), 'wo--')
+                plot3(t_stft', f_track, ones(size(f_track)), 'wo--')
                 axis(ax, 'xy');
                 view(ax, 0, 90);
                 ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
