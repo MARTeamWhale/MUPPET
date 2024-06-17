@@ -18,7 +18,7 @@ function [t_stft, f, psdm, psd] = computeSTFT(varargin)
 %   fields are "f" and "psd"
 %
 % Written by Wilfried Beslin
-% Last Updated 2024-06-12 by Wilfried Beslin
+% Last Updated 2024-06-17 by Wilfried Beslin
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -32,6 +32,7 @@ function [t_stft, f, psdm, psd] = computeSTFT(varargin)
     p.addRequired('nOverlap', @(val)validateattributes(val,{'numeric'},{'positive','integer','scalar'}))
     p.addParameter('WindowType', 'hamming', @(val)validateattributes(val,{'char','function_handle'},{}))
     p.addParameter('NFFT', [], @(val)validateattributes(val,{'numeric'},{'positive','integer','scalar'}))
+    p.addParameter('FRange', [0,Inf], @(val)validateattributes(val,{'numeric'},{'nonnegative','increasing','numel',2}))
     
     p.parse(varargin{:})
     x = p.Results.x;
@@ -47,6 +48,7 @@ function [t_stft, f, psdm, psd] = computeSTFT(varargin)
     else
         assert(nfft >= winSize, 'NFFT values smaller than the window size are not allowed')
     end
+    fRange = p.Results.FRange;
     
     % isolate the part of the time series to use in the STFT
     %%% Should start when just over half the window covers the signal, and 
@@ -74,6 +76,11 @@ function [t_stft, f, psdm, psd] = computeSTFT(varargin)
     %%% they are relative to the start of the signal. This correction
     %%% should make them start at about t=0.
     t_stft = t_stft - ((sigPos(1) - i_stftStart)/fs);
+    
+    % truncate the spectrogram to frequencies of interest
+    keep_freq = f >= fRange(1) & f <= fRange(2);
+    f = f(keep_freq);
+    psdm = psdm(keep_freq, :);
     
     % calculate Welch PSD estimate and save to output
     psd = mean(psdm, 2);
