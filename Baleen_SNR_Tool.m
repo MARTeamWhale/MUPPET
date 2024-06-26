@@ -38,7 +38,7 @@ function varargout = Baleen_SNR_Tool(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-06-12
+% 2024-06-26
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -295,7 +295,8 @@ function varargout = Baleen_SNR_Tool(varargin)
                 PLA.SNRCalc_NoiseDuration(w) = numel(xNoise)/Fs;
                 
                 %%% get spectrogram and full PSD estimate of signal
-                [t_stft, f_stft, psdm, psd] = snr.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN);
+                %%% (truncated to passband frequencies)
+                [t_stft, f_stft, psdm, psd] = snr.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                 
                 %%% trace peak frequencies
                 [psd_track, i_track] = max(psdm, [], 1);
