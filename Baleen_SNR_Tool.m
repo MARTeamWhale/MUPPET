@@ -298,23 +298,61 @@ function varargout = Baleen_SNR_Tool(varargin)
                 %%% (truncated to passband frequencies)
                 [t_stft, f_stft, psdm, psd] = snr.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                 
+                %%% smooth the spectrogram
+                spec_smooth_kernel = [1,2,1; 2,4,2; 1,2,1];
+                psdm_smooth = conv2(psdm, spec_smooth_kernel);
+                psdm_smooth = psdm_smooth(2:(end-1), 2:(end-1));
+                
+                % get subset of spectrogram that includes the user-defined
+                % frequency bounds
+                f_min_ann = PLA.annotation_fmin_hz(w);
+                f_max_ann = PLA.annotation_fmax_hz(w);
+                is_f_in_range = f_stft >= f_min_ann & f_stft <= f_max_ann;
+                psdm_trace = psdm_smooth(is_f_in_range,:);
+                f_stft_trace = f_stft(is_f_in_range);
+                
                 %%% trace peak frequencies
-                [psd_track, i_track] = max(psdm, [], 1);
-                f_track = f_stft(i_track);
+                %%% (hard-code penalty coefficient for now)
+                trace_penalty_coeff = 0.008;
+                i_f_trace = snr.getTraceLine(f_stft_trace, psdm_trace, trace_penalty_coeff);
+                f_trace = f_stft_trace(i_f_trace);
                 
                 %** DEBUG
                 %{
-                %fig = figure();
-                ax = gca;
+                fig = figure(1);
+                ax = gca();
                 cla(ax);
-                surf(t_stft-mean(diff(t_stft))/2, f_stft, psdm-max(psdm(:)), 'EdgeColor','none')
-                hold on
-                plot3(t_stft', f_track, ones(size(f_track)), 'wo--')
+                surf(t_stft-mean(diff(t_stft))/2, f_stft, psdm_smooth-max(psdm_smooth(:)), 'EdgeColor','none')
                 axis(ax, 'xy');
                 view(ax, 0, 90);
                 ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
+                xlabel(ax, 'Time [s]')
+                ylabel(ax, 'Frequency [Hz]')
+                title(sprintf('Pathfinding Trace Line (C = %g)\nNo. %d', trace_penalty_coeff, w))
+                hold on
+                
+                plot3(t_stft', f_trace, ones(size(f_trace)), 'wo-');
+                plot3(t_stft([1,end]), [f_min_ann,f_min_ann], [1,1], 'w:')
+                plot3(t_stft([1,end]), [f_max_ann,f_max_ann], [1,1], 'w:')
                 keyboard
-                %close(fig);
+                %}
+                
+                %** DEBUG MULTIPLE
+                %{
+                %%% (For now, hard-code multiple penalty coefficients, for
+                %%% testing)
+                trace_penalty_coeff = [0.008, 0.007]; %[0.001, 0.0001, 0.00001]; %[1, 0.1, 0.001, 0.0001, 0.00001, 0.000001];
+                trace_coeff_symbol = {'o','x','s','*'};
+                
+                plotvec = cell(1,numel(trace_penalty_coeff));
+                for ii = 1:numel(trace_penalty_coeff)
+                    i_f_trace = snr.getTraceLine(f_stft, psdm_smooth, trace_penalty_coeff(ii));
+                    f_trace = f_stft(i_f_trace);
+                    
+                    plotvec{ii} = plot3(t_stft', f_trace, ones(size(f_trace)), [trace_coeff_symbol{ii},'--'], 'DisplayName',num2str(trace_penalty_coeff(ii)));
+                end
+                legend(ax, [plotvec{:}], 'Location','northeastoutside')         
+                keyboard
                 %}
             end
 
