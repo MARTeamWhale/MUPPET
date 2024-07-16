@@ -1,9 +1,9 @@
-function i_f_trace = getTraceLine(f_stft, psdm, penalty_coeff)
+function i_f_trace = getTraceLine(f_stft, psdm, varargin)
 % Find an ideal trace line through a call in a spectrogram by using a
 % "shortest path" searching algorithm (Dijkstra's algorithm)
 %
 % Written by Wilfried Beslin
-% Last updated 2024-07-15
+% Last updated 2024-07-16
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -12,8 +12,16 @@ function i_f_trace = getTraceLine(f_stft, psdm, penalty_coeff)
 % rather, would need to return both interpolated frequencies and
 % magnitudes.
 
+    p = inputParser;
+    p.addParameter('PenaltyCoefficient', 0.01, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
+    p.addParameter('PenaltyExponent', 3, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
+
+    p.parse(varargin{:})
+    penalty_coeff = p.Results.PenaltyCoefficient;
+    penalty_exp = p.Results.PenaltyExponent;
+    
     % define the penalty function for jumps across fequency
-    penalty_fcn = @(df) penalty_coeff.*(df.^2) + 1;
+    penalty_fcn = @(df) penalty_coeff.*(df.^penalty_exp) + 1;
     
     % get counts from spectrogram
     [nf, nt] = size(psdm);

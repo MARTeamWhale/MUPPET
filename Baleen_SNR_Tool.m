@@ -38,7 +38,7 @@ function varargout = Baleen_SNR_Tool(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-06-26
+% 2024-07-16
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -313,9 +313,29 @@ function varargout = Baleen_SNR_Tool(varargin)
                 
                 %%% trace peak frequencies
                 %%% (hard-code penalty coefficient for now)
-                trace_penalty_coeff = 0.008;
-                i_f_trace = snr.getTraceLine(f_stft_trace, psdm_trace, trace_penalty_coeff);
+                trace_penalty_coeff = 0.01; %0.008;
+                trace_penalty_exp = 3; %2;
+                i_f_trace = snr.getTraceLine(f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp);
                 f_trace = f_stft_trace(i_f_trace);
+                
+                %%% TESTING
+                %%% run a polynomial line of best fit through the central
+                %%% 80% of the call. Try powers of 2 or 3.
+                %{
+                n_trace_buffer = round((numel(t_stft).*0.2)/2);
+                i_t_in_range = (n_trace_buffer + 1):(numel(t_stft)-n_trace_buffer);
+                f_trace_sample = f_trace(i_t_in_range);
+                t_trace_sample = t_stft(i_t_in_range);
+                
+                fitcoeff2 = polyfit(t_trace_sample', f_trace_sample, 2);
+                fitcoeff3 = polyfit(t_trace_sample', f_trace_sample, 3);
+                
+                tracefit2 = @(t) fitcoeff2(1).*(t.^2) + fitcoeff2(2).*t + fitcoeff2(3);
+                tracefit3 = @(t) fitcoeff3(1).*(t.^3) + fitcoeff3(2).*(t.^2) + fitcoeff3(3).*t + fitcoeff3(4);
+                
+                f_fit2 = tracefit2(t_stft);
+                f_fit3 = tracefit3(t_stft);
+                %}
                 
                 %** DEBUG
                 %{
@@ -328,25 +348,30 @@ function varargout = Baleen_SNR_Tool(varargin)
                 ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
                 xlabel(ax, 'Time [s]')
                 ylabel(ax, 'Frequency [Hz]')
-                title(sprintf('Pathfinding Trace Line (C = %g)\nNo. %d', trace_penalty_coeff, w))
+                title(sprintf('Pathfinding Trace Line (Cost = %g\\it\\Deltaf\\rm^{%g} + 1)\nNo. %d', trace_penalty_coeff, trace_penalty_exp, w))
                 hold on
                 
+                %%{
                 plot3(t_stft', f_trace, ones(size(f_trace)), 'wo-');
+                %plot3(t_trace_sample', f_trace_sample, ones(size(f_trace_sample)), 'rx-')
+                %plot3(t_stft', f_fit2, ones(size(f_fit2)), 'co-')
+                %plot3(t_stft', f_fit3, ones(size(f_fit3)), 'mo-')
                 plot3(t_stft([1,end]), [f_min_ann,f_min_ann], [1,1], 'w:')
                 plot3(t_stft([1,end]), [f_max_ann,f_max_ann], [1,1], 'w:')
                 keyboard
                 %}
                 
-                %** DEBUG MULTIPLE
+                %%** DEBUG MULTIPLE
                 %{
                 %%% (For now, hard-code multiple penalty coefficients, for
                 %%% testing)
-                trace_penalty_coeff = [0.008, 0.007]; %[0.001, 0.0001, 0.00001]; %[1, 0.1, 0.001, 0.0001, 0.00001, 0.000001];
+                trace_penalty_coeff = [0.008, 0.01, 0.005, 0.001]; %[0.001, 0.0001, 0.00001]; %[1, 0.1, 0.001, 0.0001, 0.00001, 0.000001];
+                trace_penalty_exp = [2, 3, 3, 3];
                 trace_coeff_symbol = {'o','x','s','*'};
                 
                 plotvec = cell(1,numel(trace_penalty_coeff));
                 for ii = 1:numel(trace_penalty_coeff)
-                    i_f_trace = snr.getTraceLine(f_stft, psdm_smooth, trace_penalty_coeff(ii));
+                    i_f_trace = snr.getTraceLine(f_stft, psdm_smooth, 'PenaltyCoefficient',trace_penalty_coeff(ii), 'PenaltyExponent',trace_penalty_exp(ii));
                     f_trace = f_stft(i_f_trace);
                     
                     plotvec{ii} = plot3(t_stft', f_trace, ones(size(f_trace)), [trace_coeff_symbol{ii},'--'], 'DisplayName',num2str(trace_penalty_coeff(ii)));
