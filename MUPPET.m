@@ -410,83 +410,9 @@ function varargout = MUPPET(varargin)
                     %%% issue warning if unable to build trace line
                     warning('Failed to find a trace line for call No. %d:\n%s', w, ME.message)
                 end
-                
-                %** DEBUG
-                %{
-                testtrace_sizes = structfun(@numel, t_trace);
-                if ~bad_trace && numel(unique(testtrace_sizes(1:end))) > 1
-                    fig = figure(1);
-                    ax = gca();
-                    cla(ax);
-
-                    patch_tshift = -mean(unique(diff(t_stft)))/2;
-                    line_fshift = mean(unique(diff(f_stft)))/2;
-
-                    surf(t_stft-mean(diff(t_stft))/2, f_stft, psdm_anal, 'EdgeColor','none')
-
-                    axis(ax, 'xy');
-                    view(ax, 0, 90);
-                    ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
-                    xlabel(ax, 'Time [s]')
-                    ylabel(ax, 'Frequency [Hz]')
-                    title(sprintf('Pathfinding Trace Line (Cost = %g\\it\\Deltaf\\rm^{%g} + 1)\nNo. %d', trace_penalty_coeff, trace_penalty_exp, w))
-
-                    caxis(ax, [-60, -3])
-                    set(ax, 'ColorScale', 'log')
-
-                    hold on
-                    
-                    trace_fields = fieldnames(t_trace);
-                    num_traces = numel(trace_fields);
-                    lin = cell(1,num_traces);
-                    %marktypes = {'s', 'o', 'x', '^', 'v', '*'};
-                    marktypes = {'wx', 'ro'};
-                    for ii = 1:num_traces
-                        field_ii = trace_fields{ii};
-                        lin_ii = plot3(t_trace.(field_ii)', f_trace.(field_ii)+line_fshift, ones(size(f_trace.(field_ii))), [marktypes{ii},'-'], 'LineWidth',1.5, 'DisplayName',field_ii);
-                        lin{ii} = lin_ii;
-                    end
-                    plot3(t_stft([1,end]), [f_min_ann,f_min_ann]+line_fshift, [1,1], 'w:')
-                    plot3(t_stft([1,end]), [f_max_ann,f_max_ann]+line_fshift, [1,1], 'w:')
-                    
-                    %%% draw a partially transparent plane corresponding to
-                    %%% the trace clipping threshold
-                    %{
-                    patch(...
-                        t_stft([1,1,end,end,1]) + patch_tshift,...
-                        f_stft([1,end,end,1,1]),...
-                        repelem(th_psdm,1,5),...
-                        'r',...
-                        'FaceAlpha', 0.25,...
-                        'EdgeColor', 'none')
-                    %}
-                    
-                    legend(ax, [lin{:}], 'Interpreter','none')
-                    
-                    keyboard
-                end
-                %}
-                
             end
-
-            %%%
-            %pass: raw wav,Start90, End90,[frequency band],buffer size,and noiseDistance to BP_clip.m
-            %output: bandpassed wav clip + buffer
-            %BP_clip = snr.BP_clip(x,Start90,End90,Freq_band,NoiseDistance,BP_buffer_samples);
-            %%%
-            %%%
-            %pass: start90, stop90, noiseDistance,and bandpassed wav clip + buffer to extractSN.m
-            %output: signal clip and noise clip
-            %Temporary function test:
-            %[xSignal, xNoise] = snr.extractSN(x,Fs,Start90,End90,NoiseDistance,Units);
-            %[xSignal, xNoise] = snr.extractSN(x, fs, sigStart, sigStop, noiseDist, units)
-            %
-            %%%
-            %%%
-            %pass: signal clip and noise clip to calculateSNR.m
-            %output: SNR
-
-            %%%
+            
+            
         end %call loop
         close(waitfig)
         
