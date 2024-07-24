@@ -1,13 +1,13 @@
-function varargout = Baleen_SNR_Tool(varargin)
+function varargout = MUPPET(varargin)
 %
-% Baleen_SNR_Tool.m
+% MUPPET.m
 %
 % Process Pamlab output for use in SNR tool.
 %
 % SYNTAX:
-%   Baleen_SNR_Tool
-%   Baleen_SNR_Tool(Name,Value)
-%   out = Baleen_SNR_Tool(__)
+%   MUPPET
+%   MUPPET(Name,Value)
+%   out = MUPPET(__)
 %
 % OPTIONAL INPUT ARGUMENTS (Name-Value Pairs):
 %   .......................................................................
@@ -270,7 +270,7 @@ function varargout = Baleen_SNR_Tool(varargin)
             %%% must be large enough to accommodate STFT windows for
             %%% generation of spectrograms and Welch spectra; thus, buffer
             %%% size is dependent on STFT parameters.
-            [xClip, sigPos, noisePos, tClipStart] = snr.isolateFilteredSNClip(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
+            [xClip, sigPos, noisePos, tClipStart] = MUPPET.isolateFilteredSNClip(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
                 'NoiseDistance', NoiseDistance,...
                 'IdealNoiseSize', NoiseSize,...
                 'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
@@ -279,7 +279,7 @@ function varargout = Baleen_SNR_Tool(varargin)
                 );
             %** old method
             %{
-            [xSignal, xNoise] = snr.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
+            [xSignal, xNoise] = MUPPET.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
                 'NoiseDistance', NoiseDistance,...
                 'IdealNoiseSize', NoiseSize,...
                 'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
@@ -299,14 +299,14 @@ function varargout = Baleen_SNR_Tool(varargin)
                     xNoise = [xNoise; xClip(noisePos(ii,1):noisePos(ii,2))];
                 end
                 
-                %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = snr.calculateSNR(xSignal, xNoise);
-                [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = snr.calculateSNR(xSignal, xNoise, 'CapNoise',true);
+                %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = MUPPET.calculateSNR(xSignal, xNoise);
+                [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = MUPPET.calculateSNR(xSignal, xNoise, 'CapNoise',true);
                 PLA.SNRCalc_SignalDuration(w) = numel(xSignal)/Fs;
                 PLA.SNRCalc_NoiseDuration(w) = numel(xNoise)/Fs;
                 
                 %%% get spectrogram and full PSD estimate of signal
                 %%% (truncated to passband frequencies)
-                [t_stft, f_stft, psdm, psd] = snr.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
+                [t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                 
                 %%% smooth the spectrogram
                 spec_smooth_kernel = [1,2,1; 2,4,2; 1,2,1];
@@ -334,7 +334,7 @@ function varargout = Baleen_SNR_Tool(varargin)
                 
                 %%% find the best trace line
                 try
-                    [t_trace, f_trace] = snr.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333, 'MaxFreqGap',10);
+                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333, 'MaxFreqGap',10);
                     
                     %** DEBUG - plot the trace line
                     if debug_trace

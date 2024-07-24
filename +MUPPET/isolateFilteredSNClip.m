@@ -74,7 +74,7 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, tClipStart] = isolateFilt
 %
 % Written by Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-05-24
+% 2024-07-24
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -96,8 +96,8 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, tClipStart] = isolateFilt
 %   -- [DONE] add parameter to set cumulative energy thresehold
 
     
-    import snr.noDelayFilt
-    import snr.calcEng
+    import MUPPET.noDelayFilt
+    import MUPPET.calcEng
     
     % parse input
     p = inputParser();
