@@ -44,8 +44,7 @@ function varargout = Baleen_SNR_Tool(varargin)
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
     % check if output arguments were requested
-    nargoutchk(0,1) % allows the function to return exactly one or zero output parameters
-    returnOutputVar = nargout > 0;
+    nargoutchk(0,2) % allows the function to return up to two optional output parameters
 
     % process optional input parameters (I/O paths)
     ip = inputParser();
@@ -53,11 +52,13 @@ function varargout = Baleen_SNR_Tool(varargin)
     ip.addParameter('WAV_FILE_FOLDER', '', @isfolder)
     ip.addParameter('OUTPUT_FOLDER_LOCATION', '', @isfolder)
     ip.addParameter('PARAMFILE', '', @isfile)
+    ip.addParameter('DEBUG_TRACE_LINES', false, @(v)validateattributes(v,{'logical'},{'scalar'})) % TEMPORARY
     ip.parse(varargin{:})
     PATH2INPUT = ip.Results.PAMLAB_DATA_FOLDER;
     PATH2DATA = ip.Results.WAV_FILE_FOLDER;
     PATH2OUTPUTDIRECTORY = ip.Results.OUTPUT_FOLDER_LOCATION;
     PARAMFILE = ip.Results.PARAMFILE;
+    debug_trace = ip.Results.DEBUG_TRACE_LINES;
     
     % prompt user to specify I/O folder paths interactively if they were
     % not entered via the command line
@@ -152,10 +153,16 @@ function varargout = Baleen_SNR_Tool(varargin)
     %%% create empty variable to store bandpass filter object
     bandpass_filter = [];
     
-    %%% initialize output variable if output was requested
-    if returnOutputVar
-        out = struct();
+    %%% initialize output variables if output was requested
+    if nargout > 0
+        out1 = struct();
+        if nargout > 1
+            out2 = struct();
+        end
     end
+    
+    %%% set trace line table variable names
+    trace_table_vars = {'RelTime','Freq','Power_dB','CallNumber'};
 
     %%% process each artefact file
     for p = 1:numAnnotations %read in in Pamlab csv (Loop) Possibly redundant...
@@ -167,6 +174,9 @@ function varargout = Baleen_SNR_Tool(varargin)
         PLA.SNRCalc_NoiseDuration = NaN(height(PLA),1); %create location to save the noise duration used to calculate SNR
         x = [];
         FileName =[];
+        
+        %%% initialize empty table to store trace lines
+        trace_lines = table([],[],[],[], 'VariableNames',trace_table_vars);
 
         %%% initialize waitbar
         num_annotations = height(PLA);
@@ -307,41 +317,98 @@ function varargout = Baleen_SNR_Tool(varargin)
                 % frequency bounds
                 f_min_ann = PLA.annotation_fmin_hz(w);
                 f_max_ann = PLA.annotation_fmax_hz(w);
-                is_f_in_range = f_stft >= f_min_ann & f_stft <= f_max_ann;
-                psdm_trace = psdm_smooth(is_f_in_range,:);
-                f_stft_trace = f_stft(is_f_in_range);
+                is_f_in_annot_range = f_stft >= f_min_ann & f_stft <= f_max_ann;
+                psdm_tracecalc = psdm_smooth(is_f_in_annot_range,:);
+                f_stft_trace = f_stft(is_f_in_annot_range);
                 
                 %%% get noise threshold for pitch tracing
+                %%% (hard-coded to 95th percentile for now)
                 psdm_anal = 10*log10(psdm_smooth);
                 psdm_anal = psdm_anal - max(psdm_anal(:));
                 th_psdm = prctile(psdm_anal(:),95);
                 
-                %%% find the best trace line
-                %%% (hard-code trace parameters for now)
-                %%% (also trying out different parameters)
+                %%% set other pitch tracing parameters
+                %%% (hard-coded for now)
                 trace_penalty_coeff = 0.01; %0.008;
                 trace_penalty_exp = 3; %2;
-
-                t_trace = struct();
-                f_trace = struct();
+                
+                %%% find the best trace line
                 try
-                    % "final" set
-                    [t_trace.unconstrained, f_trace.unconstrained] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp);
-                    [t_trace.constrained, f_trace.constrained] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333, 'MaxFreqGap',10);
+                    [t_trace, f_trace] = snr.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333, 'MaxFreqGap',10);
                     
-                    % Testing set
-                    %[t_trace.unbound, f_trace.unbound] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp);
-                    %[t_trace.bound, f_trace.bound] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm);
-                    %[t_trace.gapcut_t033, f_trace.gapcut_t033] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333);
-                    %[t_trace.gapcut_t033_f10, f_trace.gapcut_t033_f10] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333, 'MaxFreqGap',10);
-                    %[t_trace.gapcut_t025_f10, f_trace.gapcut_t025_f10] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.25, 'MaxFreqGap',10);
-                    %[t_trace.gapcut_t025_f5, f_trace.gapcut_t025_f5] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.25, 'MaxFreqGap',5);
-                    %[t_trace.penalized, f_trace.penalized] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.25, 'MaxFreqGap',5, 'GapPenalty',true);
+                    %** DEBUG - plot the trace line
+                    if debug_trace
+                        fig = figure(1);
+                        clf(fig);
+                        ax = axes();
+                        ax.NextPlot = 'add';
+
+                        patch_tshift = -mean(unique(diff(t_stft)))/2;
+                        line_fshift = mean(unique(diff(f_stft)))/2;
+
+                        surf(t_stft-mean(diff(t_stft))/2, f_stft, psdm_anal, 'EdgeColor','none')
+                        axis(ax, 'xy');
+                        view(ax, 0, 90);
+                        ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
+
+                        caxis(ax, [-60, -3])
+                        set(ax, 'ColorScale', 'log')
+                        
+                        %%% draw a partially transparent plane corresponding to
+                        %%% the trace clipping threshold
+                        %{
+                        patch(...
+                            t_stft([1,1,end,end,1]) + patch_tshift,...
+                            f_stft([1,end,end,1,1]),...
+                            repelem(th_psdm,1,5),...
+                            'r',...
+                            'FaceAlpha', 0.25,...
+                            'EdgeColor', 'none')
+                        %}
+                        
+                        %%% draw the annotation box frequency bounds
+                        plot3(t_stft([1,end]), [f_min_ann,f_min_ann]+line_fshift, [1,1], 'w:', 'LineWidth',1.5)
+                        plot3(t_stft([1,end]), [f_max_ann,f_max_ann]+line_fshift, [1,1], 'w:', 'LineWidth',1.5)
+
+                        %%% draw the trace line(s)
+                        if isstruct(t_trace)
+                            trace_fields = fieldnames(t_trace);
+                            num_traces = numel(trace_fields);
+                            lin = cell(1,num_traces);
+                            marktypes = {'s', 'o', 'x', '^', 'v', '*'};
+                            %marktypes = {'wx', 'ro'};
+                            for ii = 1:num_traces
+                                field_ii = trace_fields{ii};
+                                lin_ii = plot3(t_trace.(field_ii)', f_trace.(field_ii)+line_fshift, ones(size(f_trace.(field_ii))), [marktypes{ii},'-'], 'LineWidth',1.5, 'DisplayName',field_ii);
+                                lin{ii} = lin_ii;
+                            end
+                            
+                            legend(ax, [lin{:}], 'Interpreter','none')
+                        else
+                            plot3(t_trace', f_trace+line_fshift, ones(size(f_trace)), 'ro-', 'LineWidth',1.5);
+                        end
+                        
+                        xlabel(ax, 'Time [s]')
+                        ylabel(ax, 'Frequency [Hz]')
+                        title(sprintf('Pathfinding Trace Line (Cost = %g\\it\\Deltaf\\rm^{%g} + 1)\nNo. %d', trace_penalty_coeff, trace_penalty_exp, w))
+
+                        keyboard
+                    end
                     
-                    bad_trace = false;
+                    %%% get the original (unsmoothed) power values of the 
+                    %%% trace line 
+                    psdm_tracedata = 10.*log10(psdm(is_f_in_annot_range,:));
+                    [~, i_f_trace] = ismember(f_trace, f_stft_trace);
+                    [~, i_t_trace] = ismember(t_trace, t_stft);
+                    p_trace = psdm_tracedata(sub2ind(size(psdm_tracedata), i_f_trace, i_t_trace'));
+                    
+                    %%% store trace data in table
+                    trace_line_w = table(t_trace', f_trace,  p_trace, repelem(w,numel(t_trace),1), 'VariableNames',trace_table_vars);
+                    trace_lines = [trace_lines; trace_line_w];
+                    
                 catch ME
+                    %%% issue warning if unable to build trace line
                     warning('Failed to find a trace line for call No. %d:\n%s', w, ME.message)
-                    bad_trace = true;
                 end
                 
                 %** DEBUG
@@ -423,30 +490,45 @@ function varargout = Baleen_SNR_Tool(varargin)
         end %call loop
         close(waitfig)
         
-        % create output file
+        % create main output file
         temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
         temp_filename = [char(temp_name(1)) '_SNR.csv'];
         final_filename = generateUniqueName(PATH2OUTPUT,temp_filename);
         PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
         writetable(PLA,PATH2OUTPUT_FILENAME);
         
-        % save table to output variable if needed
-        if returnOutputVar
+        % create output file for trace line table
+        trace_temp_filename = [char(temp_name(1)) '_TraceLines.csv'];
+        trace_final_filename = generateUniqueName(PATH2OUTPUT,trace_temp_filename);
+        PATH2OUTPUT_TRACEFILENAME = fullfile(PATH2OUTPUT,trace_final_filename);
+        writetable(trace_lines,PATH2OUTPUT_TRACEFILENAME);
+        
+        % save tables to output variables if needed
+        if nargout > 0
             outFieldName = temp_name{1};
             outFieldNameAlt = sprintf('Annotations_%d',p);
             try
-                out.(outFieldName) = PLA;
+                out1.(outFieldName) = PLA;
+                if nargout > 1
+                    out2.(outFieldName) = trace_lines;
+                end
             catch
-                warning('"%s" is not a valid field name for the output variable; it will be replaced with "%s".', outFieldName, outFieldNameAlt)
-                out.(outFieldNameAlt) = PLA;
+                warning('"%s" is not a valid field name for the output variable(s); it will be replaced with "%s".', outFieldName, outFieldNameAlt)
+                out1.(outFieldNameAlt) = PLA;
+                if nargout > 1
+                    out2.(outFieldNameAlt) = trace_lines;
+                end
             end
         end
         
     end % end PAMLAB annotations loop
     
-    % return the output variable if requested
-    if returnOutputVar
-        varargout{1} = out;
+    % return the output variables requested, if any
+    if nargout > 0
+        varargout{1} = out1;
+        if nargout > 1
+            varargout{2} = out2;
+        end
     end
     
 end % end main function
