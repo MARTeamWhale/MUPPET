@@ -38,7 +38,7 @@ function varargout = Baleen_SNR_Tool(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-07-16
+% 2024-07-24
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -311,74 +311,95 @@ function varargout = Baleen_SNR_Tool(varargin)
                 psdm_trace = psdm_smooth(is_f_in_range,:);
                 f_stft_trace = f_stft(is_f_in_range);
                 
-                %%% trace peak frequencies
-                %%% (hard-code penalty coefficient for now)
+                %%% get noise threshold for pitch tracing
+                psdm_anal = 10*log10(psdm_smooth);
+                psdm_anal = psdm_anal - max(psdm_anal(:));
+                th_psdm = prctile(psdm_anal(:),95);
+                
+                %%% find the best trace line
+                %%% (hard-code trace parameters for now)
+                %%% (also trying out different parameters)
                 trace_penalty_coeff = 0.01; %0.008;
                 trace_penalty_exp = 3; %2;
-                i_f_trace = snr.getTraceLine(f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp);
-                f_trace = f_stft_trace(i_f_trace);
-                
-                %%% TESTING
-                %%% run a polynomial line of best fit through the central
-                %%% 80% of the call. Try powers of 2 or 3.
-                %{
-                n_trace_buffer = round((numel(t_stft).*0.2)/2);
-                i_t_in_range = (n_trace_buffer + 1):(numel(t_stft)-n_trace_buffer);
-                f_trace_sample = f_trace(i_t_in_range);
-                t_trace_sample = t_stft(i_t_in_range);
-                
-                fitcoeff2 = polyfit(t_trace_sample', f_trace_sample, 2);
-                fitcoeff3 = polyfit(t_trace_sample', f_trace_sample, 3);
-                
-                tracefit2 = @(t) fitcoeff2(1).*(t.^2) + fitcoeff2(2).*t + fitcoeff2(3);
-                tracefit3 = @(t) fitcoeff3(1).*(t.^3) + fitcoeff3(2).*(t.^2) + fitcoeff3(3).*t + fitcoeff3(4);
-                
-                f_fit2 = tracefit2(t_stft);
-                f_fit3 = tracefit3(t_stft);
-                %}
+
+                t_trace = struct();
+                f_trace = struct();
+                try
+                    % "final" set
+                    [t_trace.unconstrained, f_trace.unconstrained] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp);
+                    [t_trace.constrained, f_trace.constrained] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333, 'MaxFreqGap',10);
+                    
+                    % Testing set
+                    %[t_trace.unbound, f_trace.unbound] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp);
+                    %[t_trace.bound, f_trace.bound] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm);
+                    %[t_trace.gapcut_t033, f_trace.gapcut_t033] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333);
+                    %[t_trace.gapcut_t033_f10, f_trace.gapcut_t033_f10] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333, 'MaxFreqGap',10);
+                    %[t_trace.gapcut_t025_f10, f_trace.gapcut_t025_f10] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.25, 'MaxFreqGap',10);
+                    %[t_trace.gapcut_t025_f5, f_trace.gapcut_t025_f5] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.25, 'MaxFreqGap',5);
+                    %[t_trace.penalized, f_trace.penalized] = snr.getTraceLine(t_stft, f_stft_trace, psdm_trace, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.25, 'MaxFreqGap',5, 'GapPenalty',true);
+                    
+                    bad_trace = false;
+                catch ME
+                    warning('Failed to find a trace line for call No. %d:\n%s', w, ME.message)
+                    bad_trace = true;
+                end
                 
                 %** DEBUG
                 %{
-                fig = figure(1);
-                ax = gca();
-                cla(ax);
-                surf(t_stft-mean(diff(t_stft))/2, f_stft, psdm_smooth-max(psdm_smooth(:)), 'EdgeColor','none')
-                axis(ax, 'xy');
-                view(ax, 0, 90);
-                ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
-                xlabel(ax, 'Time [s]')
-                ylabel(ax, 'Frequency [Hz]')
-                title(sprintf('Pathfinding Trace Line (Cost = %g\\it\\Deltaf\\rm^{%g} + 1)\nNo. %d', trace_penalty_coeff, trace_penalty_exp, w))
-                hold on
-                
-                %%{
-                plot3(t_stft', f_trace, ones(size(f_trace)), 'wo-');
-                %plot3(t_trace_sample', f_trace_sample, ones(size(f_trace_sample)), 'rx-')
-                %plot3(t_stft', f_fit2, ones(size(f_fit2)), 'co-')
-                %plot3(t_stft', f_fit3, ones(size(f_fit3)), 'mo-')
-                plot3(t_stft([1,end]), [f_min_ann,f_min_ann], [1,1], 'w:')
-                plot3(t_stft([1,end]), [f_max_ann,f_max_ann], [1,1], 'w:')
-                keyboard
-                %}
-                
-                %%** DEBUG MULTIPLE
-                %{
-                %%% (For now, hard-code multiple penalty coefficients, for
-                %%% testing)
-                trace_penalty_coeff = [0.008, 0.01, 0.005, 0.001]; %[0.001, 0.0001, 0.00001]; %[1, 0.1, 0.001, 0.0001, 0.00001, 0.000001];
-                trace_penalty_exp = [2, 3, 3, 3];
-                trace_coeff_symbol = {'o','x','s','*'};
-                
-                plotvec = cell(1,numel(trace_penalty_coeff));
-                for ii = 1:numel(trace_penalty_coeff)
-                    i_f_trace = snr.getTraceLine(f_stft, psdm_smooth, 'PenaltyCoefficient',trace_penalty_coeff(ii), 'PenaltyExponent',trace_penalty_exp(ii));
-                    f_trace = f_stft(i_f_trace);
+                testtrace_sizes = structfun(@numel, t_trace);
+                if ~bad_trace && numel(unique(testtrace_sizes(1:end))) > 1
+                    fig = figure(1);
+                    ax = gca();
+                    cla(ax);
+
+                    patch_tshift = -mean(unique(diff(t_stft)))/2;
+                    line_fshift = mean(unique(diff(f_stft)))/2;
+
+                    surf(t_stft-mean(diff(t_stft))/2, f_stft, psdm_anal, 'EdgeColor','none')
+
+                    axis(ax, 'xy');
+                    view(ax, 0, 90);
+                    ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
+                    xlabel(ax, 'Time [s]')
+                    ylabel(ax, 'Frequency [Hz]')
+                    title(sprintf('Pathfinding Trace Line (Cost = %g\\it\\Deltaf\\rm^{%g} + 1)\nNo. %d', trace_penalty_coeff, trace_penalty_exp, w))
+
+                    caxis(ax, [-60, -3])
+                    set(ax, 'ColorScale', 'log')
+
+                    hold on
                     
-                    plotvec{ii} = plot3(t_stft', f_trace, ones(size(f_trace)), [trace_coeff_symbol{ii},'--'], 'DisplayName',num2str(trace_penalty_coeff(ii)));
+                    trace_fields = fieldnames(t_trace);
+                    num_traces = numel(trace_fields);
+                    lin = cell(1,num_traces);
+                    %marktypes = {'s', 'o', 'x', '^', 'v', '*'};
+                    marktypes = {'wx', 'ro'};
+                    for ii = 1:num_traces
+                        field_ii = trace_fields{ii};
+                        lin_ii = plot3(t_trace.(field_ii)', f_trace.(field_ii)+line_fshift, ones(size(f_trace.(field_ii))), [marktypes{ii},'-'], 'LineWidth',1.5, 'DisplayName',field_ii);
+                        lin{ii} = lin_ii;
+                    end
+                    plot3(t_stft([1,end]), [f_min_ann,f_min_ann]+line_fshift, [1,1], 'w:')
+                    plot3(t_stft([1,end]), [f_max_ann,f_max_ann]+line_fshift, [1,1], 'w:')
+                    
+                    %%% draw a partially transparent plane corresponding to
+                    %%% the trace clipping threshold
+                    %{
+                    patch(...
+                        t_stft([1,1,end,end,1]) + patch_tshift,...
+                        f_stft([1,end,end,1,1]),...
+                        repelem(th_psdm,1,5),...
+                        'r',...
+                        'FaceAlpha', 0.25,...
+                        'EdgeColor', 'none')
+                    %}
+                    
+                    legend(ax, [lin{:}], 'Interpreter','none')
+                    
+                    keyboard
                 end
-                legend(ax, [plotvec{:}], 'Location','northeastoutside')         
-                keyboard
                 %}
+                
             end
 
             %%%
