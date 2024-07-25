@@ -38,7 +38,7 @@ function varargout = MUPPET(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-07-24
+% 2024-07-25
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -175,8 +175,11 @@ function varargout = MUPPET(varargin)
         x = [];
         FileName =[];
         
+        %%% initialize empty table to store features
+        call_params = table();
+        
         %%% initialize empty table to store trace lines
-        trace_lines = table([],[],[],[], 'VariableNames',trace_table_vars);
+        trace_lines = table();
 
         %%% initialize waitbar
         num_annotations = height(PLA);
@@ -270,7 +273,7 @@ function varargout = MUPPET(varargin)
             %%% must be large enough to accommodate STFT windows for
             %%% generation of spectrograms and Welch spectra; thus, buffer
             %%% size is dependent on STFT parameters.
-            [xClip, sigPos, noisePos, tClipStart] = MUPPET.isolateFilteredSNClip(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
+            [xClip, sigPos, noisePos, annotPos, tClipStart] = MUPPET.isolateFilteredSNClip(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
                 'NoiseDistance', NoiseDistance,...
                 'IdealNoiseSize', NoiseSize,...
                 'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
@@ -291,13 +294,14 @@ function varargout = MUPPET(varargin)
             %%% endpoints)
             %if ~isempty(xSignal)
             if ~isempty(xClip)
-                %%% extract signal and noise from clip.
+                %%% extract samples of signal and noise from clip.
                 %%% Separated noise sections will be concatenated.
                 xSignal = xClip(sigPos(1):sigPos(2));
                 xNoise = [];
                 for ii = 1:size(noisePos,1)
                     xNoise = [xNoise; xClip(noisePos(ii,1):noisePos(ii,2))];
                 end
+                %xAnnot = xClip(annotPos(1):annotPos(2));
                 
                 %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = MUPPET.calculateSNR(xSignal, xNoise);
                 [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = MUPPET.calculateSNR(xSignal, xNoise, 'CapNoise',true);
@@ -409,9 +413,20 @@ function varargout = MUPPET(varargin)
                 catch ME
                     %%% issue warning if unable to build trace line
                     warning('Failed to find a trace line for call No. %d:\n%s', w, ME.message)
+                    trace_line_w = [];
                 end
+                
+                %%% extract call parameters and store to table
+                sigPosRel = sigPos - annotPos(1); % energy-based signal position relative to start of annotation
+                call_params_w = MUPPET.extractCallParams(sigPosRel, Fs, f_stft, psd, EnergyPercent, trace_line_w);
+            else
+                % cannot calculate parameters for unsuitable calls, so just
+                % pass NaNs to parameter extraction routine
+                call_params_w = MUPPET.extractCallParams(NaN, NaN, NaN, NaN, NaN, NaN);
             end
             
+            %%% add call parameters to running table
+            call_params = [call_params; struct2table(call_params_w)];
             
         end %call loop
         close(waitfig)

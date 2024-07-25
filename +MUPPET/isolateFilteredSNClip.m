@@ -1,4 +1,4 @@
-function [xClipFilt, j_targetSigEnergyPos, j_noisePos, tClipStart] = isolateFilteredSNClip(varargin)
+function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipStart] = isolateFilteredSNClip(varargin)
 %
 % Isolate signal and associated noise samples from a larger audio time
 % series vector, given a pre-determined signal location. Works by isolating
@@ -68,13 +68,16 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, tClipStart] = isolateFilt
 %   "j_noisePos" - N-by-2 matrix containing the start and stop samples
 %       of signal-free sections within a noise window preceding the signal 
 %   .......................................................................
+%   "j_targetSigBoxPos" - 2-element vector containing the start and stop
+%       samples of the target signal annotation box
+%   .......................................................................
 %   "tClipStart" - start time of the subclip, in seconds
 %   .......................................................................
 %
 %
 % Written by Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-07-24
+% 2024-07-25
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -313,6 +316,7 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, tClipStart] = isolateFilt
         xClipFilt = [];
         j_targetSigEnergyPos = double.empty(0,2);
         j_noisePos = double.empty(0,2);
+        j_targetSigBoxPos = double.empty(0,2);
         tClipStart = NaN;
     end
 end
