@@ -27,6 +27,10 @@ function varargout = MUPPET(varargin)
 %       tool will try to load the default parameters from the file
 %       SNR_PARAMS.csv.
 %   .......................................................................
+%   "PLOT_TRACE_LINES" - true/false value that determines whether or not to
+%       save images of trace line plots for each annotation in the output
+%       folder. Default is false.
+%   .......................................................................
 %
 % OPTIONAL OUTPUT ARGUMENTS:
 % These arguments are only returned when requested in the command window.
@@ -62,13 +66,13 @@ function varargout = MUPPET(varargin)
     ip.addParameter('WAV_FILE_FOLDER', '', @isfolder)
     ip.addParameter('OUTPUT_FOLDER_LOCATION', '', @isfolder)
     ip.addParameter('PARAMFILE', '', @isfile)
-    ip.addParameter('DEBUG_TRACE_LINES', false, @(v)validateattributes(v,{'logical'},{'scalar'})) % TEMPORARY
+    ip.addParameter('PLOT_TRACE_LINES', false, @(v)validateattributes(v,{'logical'},{'scalar'}))
     ip.parse(varargin{:})
     PATH2INPUT = ip.Results.PAMLAB_DATA_FOLDER;
     PATH2DATA = ip.Results.WAV_FILE_FOLDER;
     PATH2OUTPUTDIRECTORY = ip.Results.OUTPUT_FOLDER_LOCATION;
     PARAMFILE = ip.Results.PARAMFILE;
-    debug_trace = ip.Results.DEBUG_TRACE_LINES;
+    plot_trace = ip.Results.PLOT_TRACE_LINES;
     
     % prompt user to specify I/O folder paths interactively if they were
     % not entered via the command line
@@ -185,11 +189,19 @@ function varargout = MUPPET(varargin)
         x = [];
         FileName =[];
         
+        outfile_refname = erase(PAMLAB_ANNOTATIONS(p).name, '.csv');
+        
         %%% initialize empty table to store features
         call_params = table();
         
         %%% initialize empty table to store trace lines
         trace_lines = table();
+        
+        %%% set up plot folder, if relevant
+        if plot_trace
+            PATH2OUTPUT_TRACEPLOTS = fullfile(PATH2OUTPUT, [outfile_refname,'_TracePlots']);
+            mkdir(PATH2OUTPUT_TRACEPLOTS)
+        end
 
         %%% initialize waitbar
         num_annotations = height(PLA);
@@ -345,69 +357,12 @@ function varargout = MUPPET(varargin)
                 %%% (hard-coded for now)
                 trace_penalty_coeff = 0.01; %0.008;
                 trace_penalty_exp = 3; %2;
+                trace_max_t_gap = 0.333;
+                trace_max_f_gap = 10;
                 
                 %%% find the best trace line
                 try
-                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',0.333, 'MaxFreqGap',10);
-                    
-                    %** DEBUG - plot the trace line
-                    if debug_trace
-                        fig = figure(1);
-                        clf(fig);
-                        ax = axes();
-                        ax.NextPlot = 'add';
-
-                        patch_tshift = -mean(unique(diff(t_stft)))/2;
-                        line_fshift = mean(unique(diff(f_stft)))/2;
-
-                        surf(t_stft-mean(diff(t_stft))/2, f_stft, psdm_anal, 'EdgeColor','none')
-                        axis(ax, 'xy');
-                        view(ax, 0, 90);
-                        ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
-
-                        caxis(ax, [-60, -3])
-                        set(ax, 'ColorScale', 'log')
-                        
-                        %%% draw a partially transparent plane corresponding to
-                        %%% the trace clipping threshold
-                        %{
-                        patch(...
-                            t_stft([1,1,end,end,1]) + patch_tshift,...
-                            f_stft([1,end,end,1,1]),...
-                            repelem(th_psdm,1,5),...
-                            'r',...
-                            'FaceAlpha', 0.25,...
-                            'EdgeColor', 'none')
-                        %}
-                        
-                        %%% draw the annotation box frequency bounds
-                        plot3(t_stft([1,end]), [f_min_ann,f_min_ann]+line_fshift, [1,1], 'w:', 'LineWidth',1.5)
-                        plot3(t_stft([1,end]), [f_max_ann,f_max_ann]+line_fshift, [1,1], 'w:', 'LineWidth',1.5)
-
-                        %%% draw the trace line(s)
-                        if isstruct(t_trace)
-                            trace_fields = fieldnames(t_trace);
-                            num_traces = numel(trace_fields);
-                            lin = cell(1,num_traces);
-                            marktypes = {'s', 'o', 'x', '^', 'v', '*'};
-                            %marktypes = {'wx', 'ro'};
-                            for ii = 1:num_traces
-                                field_ii = trace_fields{ii};
-                                lin_ii = plot3(t_trace.(field_ii)', f_trace.(field_ii)+line_fshift, ones(size(f_trace.(field_ii))), [marktypes{ii},'-'], 'LineWidth',1.5, 'DisplayName',field_ii);
-                                lin{ii} = lin_ii;
-                            end
-                            
-                            legend(ax, [lin{:}], 'Interpreter','none')
-                        else
-                            plot3(t_trace', f_trace+line_fshift, ones(size(f_trace)), 'ro-', 'LineWidth',1.5);
-                        end
-                        
-                        xlabel(ax, 'Time [s]')
-                        ylabel(ax, 'Frequency [Hz]')
-                        title(sprintf('Pathfinding Trace Line (Cost = %g\\it\\Deltaf\\rm^{%g} + 1)\nNo. %d', trace_penalty_coeff, trace_penalty_exp, w))
-
-                        keyboard
-                    end
+                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
                     
                     %%% get the original (unsmoothed) power values of the 
                     %%% trace line 
@@ -426,6 +381,29 @@ function varargout = MUPPET(varargin)
                     trace_line_w = [];
                 end
                 
+                %%% plot trace line if specified
+                if plot_trace && ~isempty(trace_line_w)
+                    fig = gcf();
+                    fig.Visible = 'off';
+                    clf(fig);
+                    ax = axes();
+
+                    MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_smooth, t_trace, f_trace, [f_min_ann,f_max_ann]);
+                    ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
+                    xlim(t_stft([1,end]))
+
+                    title(sprintf('%s - No. %d\n\\rmCost = %g\\it\\Deltaf\\rm^{%g} + 1;   Th=%.2fdB,  MaxTGap=%.2fs,  MaxFGap=%gHz', strrep(outfile_refname,'_','\_'), w, trace_penalty_coeff, trace_penalty_exp, th_psdm, trace_max_t_gap, trace_max_f_gap))
+
+                    % save the plot
+                    PATH2OUTPUT_TRACEPLOT_FILE = fullfile(PATH2OUTPUT_TRACEPLOTS, ['Trace_',num2str(w),'.png']);
+                    figRes = 150;
+                    figDims = [1440, 810];
+                    fig.PaperUnits = 'inches';
+                    fig.PaperPosition = [0, 0, figDims/figRes];
+                    fig.PaperPositionMode = 'manual';
+                    print(fig, PATH2OUTPUT_TRACEPLOT_FILE, '-dpng', ['-r',num2str(figRes)])
+                end
+                
                 %%% extract call parameters and store to table
                 sigPosRel = sigPos - annotPos(1); % energy-based signal position relative to start of annotation
                 call_params_w = MUPPET.extractCallParams(sigPosRel, Fs, f_stft, psd, EnergyPercent, trace_line_w);
@@ -442,10 +420,9 @@ function varargout = MUPPET(varargin)
         close(waitfig)
         
         % Create output files
-        temp_filename = erase(PAMLAB_ANNOTATIONS(p).name, '.csv');
         
         %%% SNR-expanded annotations output file
-        out1_filename = [temp_filename, '_SNR.csv'];
+        out1_filename = [outfile_refname, '_SNR.csv'];
         PATH2OUTPUT_SNR_FILE = fullfile(PATH2OUTPUT, out1_filename);
         writetable(PLA, PATH2OUTPUT_SNR_FILE);
         %%% OLD CODE
@@ -456,18 +433,18 @@ function varargout = MUPPET(varargin)
         %writetable(PLA,PATH2OUTPUT_FILENAME);
         
         %%% call parameter output file
-        out2_filename = [temp_filename, '_CallParams.csv'];
+        out2_filename = [outfile_refname, '_CallParams.csv'];
         PATH2OUTPUT_CALLPARAMS_FILE = fullfile(PATH2OUTPUT, out2_filename);
         writetable(call_params, PATH2OUTPUT_CALLPARAMS_FILE);
         
         %%% trace line output table
-        out3_filename = [temp_filename, '_TraceLines.csv'];
+        out3_filename = [outfile_refname, '_TraceLines.csv'];
         PATH2OUTPUT_TRACE_FILE = fullfile(PATH2OUTPUT, out3_filename);
         writetable(trace_lines, PATH2OUTPUT_TRACE_FILE);
         
         % save tables to output variables if needed
         if nargout > 0
-            outFieldName_primary = temp_filename;
+            outFieldName_primary = outfile_refname;
             outFieldName_secondary = sprintf('Annotations_%d',p);
             outFieldName = outFieldName_primary;
             for outvarnum = 1:nargout
