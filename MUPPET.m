@@ -39,7 +39,10 @@ function varargout = MUPPET(varargin)
 %   versions of the PAMLab annotation tables that include SNR information
 %   at the end.
 %   .......................................................................
-%   "out2" - data from the second MUPPET output file, i.e., tables of
+%   "out2" - data from the second MUPPET output file, i.e., tables of call
+%   parameters.
+%   .......................................................................
+%   "out3" - data from the third MUPPET output file, i.e., tables of
 %   concatenated trace line points.
 %   .......................................................................
 %
@@ -51,7 +54,7 @@ function varargout = MUPPET(varargin)
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
 
     % check if output arguments were requested
-    nargoutchk(0,2) % allows the function to return up to two optional output parameters
+    nargoutchk(0,3) % allows the function to return up to three optional output parameters
 
     % process optional input parameters (I/O paths)
     ip = inputParser();
@@ -113,7 +116,9 @@ function varargout = MUPPET(varargin)
     numAnnotations = length(PAMLAB_ANNOTATIONS);
     
     % create output folder
-    PATH2OUTPUT = fullfile(PATH2OUTPUTDIRECTORY,'SNR_OUTPUT');
+    %PATH2OUTPUT = fullfile(PATH2OUTPUTDIRECTORY,'SNR_OUTPUT');
+    [~,dataDirName] = fileparts(PATH2INPUT);
+    PATH2OUTPUT = fullfile(PATH2OUTPUTDIRECTORY, generateUniqueName(PATH2OUTPUTDIRECTORY,['MUPPET_OUTPUT_',dataDirName]));
     if ~exist(PATH2OUTPUT, 'dir')
        mkdir(PATH2OUTPUT)
     end
@@ -161,11 +166,9 @@ function varargout = MUPPET(varargin)
     bandpass_filter = [];
     
     %%% initialize output variables if output was requested
-    if nargout > 0
-        out1 = struct();
-        if nargout > 1
-            out2 = struct();
-        end
+    varargout = cell(1,nargout);
+    for outvarnum = 1:nargout
+        varargout{outvarnum} = struct();
     end
     
     %%% set trace line table variable names
@@ -438,46 +441,58 @@ function varargout = MUPPET(varargin)
         end %call loop
         close(waitfig)
         
-        % create main output file
-        temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
-        temp_filename = [char(temp_name(1)) '_SNR.csv'];
-        final_filename = generateUniqueName(PATH2OUTPUT,temp_filename);
-        PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
-        writetable(PLA,PATH2OUTPUT_FILENAME);
+        % Create output files
+        temp_filename = erase(PAMLAB_ANNOTATIONS(p).name, '.csv');
         
-        % create output file for trace line table
-        trace_temp_filename = [char(temp_name(1)) '_TraceLines.csv'];
-        trace_final_filename = generateUniqueName(PATH2OUTPUT,trace_temp_filename);
-        PATH2OUTPUT_TRACEFILENAME = fullfile(PATH2OUTPUT,trace_final_filename);
-        writetable(trace_lines,PATH2OUTPUT_TRACEFILENAME);
+        %%% SNR-expanded annotations output file
+        out1_filename = [temp_filename, '_SNR.csv'];
+        PATH2OUTPUT_SNR_FILE = fullfile(PATH2OUTPUT, out1_filename);
+        writetable(PLA, PATH2OUTPUT_SNR_FILE);
+        %%% OLD CODE
+        %temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
+        %temp_filename = [char(temp_name(1)) '_SNR.csv'];
+        %final_filename = generateUniqueName(PATH2OUTPUT,temp_filename);
+        %PATH2OUTPUT_FILENAME = fullfile(PATH2OUTPUT,final_filename);
+        %writetable(PLA,PATH2OUTPUT_FILENAME);
+        
+        %%% call parameter output file
+        out2_filename = [temp_filename, '_CallParams.csv'];
+        PATH2OUTPUT_CALLPARAMS_FILE = fullfile(PATH2OUTPUT, out2_filename);
+        writetable(call_params, PATH2OUTPUT_CALLPARAMS_FILE);
+        
+        %%% trace line output table
+        out3_filename = [temp_filename, '_TraceLines.csv'];
+        PATH2OUTPUT_TRACE_FILE = fullfile(PATH2OUTPUT, out3_filename);
+        writetable(trace_lines, PATH2OUTPUT_TRACE_FILE);
         
         % save tables to output variables if needed
         if nargout > 0
-            outFieldName = temp_name{1};
-            outFieldNameAlt = sprintf('Annotations_%d',p);
-            try
-                out1.(outFieldName) = PLA;
-                if nargout > 1
-                    out2.(outFieldName) = trace_lines;
+            outFieldName_primary = temp_filename;
+            outFieldName_secondary = sprintf('Annotations_%d',p);
+            outFieldName = outFieldName_primary;
+            for outvarnum = 1:nargout
+                switch outvarnum
+                    case 1
+                        outvar = PLA;
+                    case 2
+                        outvar = call_params;
+                    case 3
+                        outvar = trace_lines;
+                    otherwise
+                        warning('Ignoring extra output arguments')
+                        break
                 end
-            catch
-                warning('"%s" is not a valid field name for the output variable(s); it will be replaced with "%s".', outFieldName, outFieldNameAlt)
-                out1.(outFieldNameAlt) = PLA;
-                if nargout > 1
-                    out2.(outFieldNameAlt) = trace_lines;
+                try
+                    varargout{outvarnum}.(outFieldName) = outvar;
+                catch
+                    warning('"%s" is not a valid field name for the output variable(s); it will be replaced with "%s".', outFieldName, outFieldName_secondary)
+                    outFieldName = outFieldName_secondary;
+                    varargout{outvarnum}.(outFieldName) = outvar;
                 end
             end
         end
         
     end % end PAMLAB annotations loop
-    
-    % return the output variables requested, if any
-    if nargout > 0
-        varargout{1} = out1;
-        if nargout > 1
-            varargout{2} = out2;
-        end
-    end
     
 end % end main function
 
