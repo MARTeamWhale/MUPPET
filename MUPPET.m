@@ -2,7 +2,8 @@ function varargout = MUPPET(varargin)
 %
 % MUPPET.m
 %
-% Process Pamlab output for use in SNR tool.
+% Process Pamlab output for use with MUPPET. Runs MUPPET code to extract
+% call parameters from Pamlab annotations.
 %
 % SYNTAX:
 %   MUPPET
@@ -28,17 +29,23 @@ function varargout = MUPPET(varargin)
 %   .......................................................................
 %
 % OPTIONAL OUTPUT ARGUMENTS:
+% These arguments are only returned when requested in the command window.
+% MUPPET already saves all output as files, so these arguments are mostly
+% useful for debugging or otherwise working with the results directly in
+% the MATLAB workspace. Output arguments all take the form of structs,
+% where each field corresponds to one PAMLab annotation file.
 %   .......................................................................
-%   "out" = struct containing the output annotation tables that were saved
-%       to CSV files. Mostly useful for debugging or otherwise working with
-%       the results directly in the MATLAB workspace. Only returned if
-%       explicitly requested.
+%   "out1" = data from the first MUPPET output file, i.e., expanded
+%   versions of the PAMLab annotation tables that include SNR information
+%   at the end.
 %   .......................................................................
-%
+%   "out2" - data from the second MUPPET output file, i.e., tables of
+%   concatenated trace line points.
+%   .......................................................................
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-07-25
+% 2024-07-26
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
