@@ -52,7 +52,7 @@ function varargout = MUPPET(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-09-04
+% 2024-09-05
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -302,14 +302,6 @@ function varargout = MUPPET(varargin)
                 'EnergyPercent', EnergyPercent,...
                 'ClipBufferSize', (stftWinSize*0.75)/Fs ... % the factor of 75% is probably overkill, but will stick with this for now
                 );
-            %** old method
-            %{
-            [xSignal, xNoise] = MUPPET.extractSN(x, Fs, [PLA_Start,PLA_Stop], bandpass_filter,...
-                'NoiseDistance', NoiseDistance,...
-                'IdealNoiseSize', NoiseSize,...
-                'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
-                'EnergyPercent', EnergyPercent);
-            %}
             
             %%% calculate SNR and other features
             %%% (leave NaN if not possible because signal is too close to 
@@ -335,15 +327,11 @@ function varargout = MUPPET(varargin)
                 [t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                 dt_stft = median(diff(t_stft));
                 
-                %%% convert spectrogram to log scale **(NEW)**
+                %%% convert spectrogram to log scale
                 logpsdm = 10.*log10(psdm);
                 
                 %%% smooth the spectrogram
                 logpsdm_smooth = MUPPET.smoothSpec(logpsdm);
-                % OLD METHOD
-                %spec_smooth_kernel = [1,2,1; 2,4,2; 1,2,1];
-                %logpsdm_smooth = conv2(logpsdm, spec_smooth_kernel);
-                %logpsdm_smooth = logpsdm_smooth(2:(end-1), 2:(end-1));
                 
                 %** NEW: get noise spectrogram
                 %%% Here I am calculating different spectrograms for every
@@ -407,19 +395,6 @@ function varargout = MUPPET(varargin)
                 
                 % set noise threshold for pitch tracing
                 spec_snr_th = 10;
-                %** OLD METHOD
-                %{
-                %%% (hard-coded to 95th percentile for now)
-                psdm_anal = 10*log10(logpsdm_smooth);
-                %%% PROBLEM: the threshold is based on a shifted version of
-                %%% the full passband spectrogram, but the spectrogram used
-                %%% to calculate trace lines is truncated to the annotation
-                %%% box and shifted relative to that. Try fixing this.
-                %psdm_anal = psdm_anal - max(psdm_anal(:));
-                psdm_log_offset = max(psdm_anal(is_f_in_annot_range,:),[],'all');
-                psdm_anal = psdm_anal - psdm_log_offset;
-                th_psdm = prctile(psdm_anal(:),95);
-                %}
                 
                 %%% set other pitch tracing parameters
                 %%% (hard-coded for now)
@@ -440,17 +415,18 @@ function varargout = MUPPET(varargin)
                     %[t_trace_dn, f_trace_dn] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_denoised_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_denoised_psdm, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
                     %[t_trace_relth1, f_trace_relth1] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',3, 'ThresholdType','timebin', 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
                     %[t_trace_relth, f_trace_relth] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',10, 'ThresholdType','timebin', 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
-                    [t_trace_th3, f_trace_th3] = MUPPET.getTraceLine(t_stft, f_stft_annwin, logpsdm_denoised_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',3, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
+                    %[t_trace_th7, f_trace_th7] = MUPPET.getTraceLine(t_stft, f_stft_annwin, logpsdm_denoised_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',7, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
+                    [t_trace_multi, f_trace_multi] = MUPPET.getTraceLine(t_stft, f_stft_annwin, logpsdm_denoised_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',7, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap, 'NumAveragingPaths',5);
                     
-                    t_trace_all = {t_trace_th3, t_trace};
-                    f_trace_all = {f_trace_th3, f_trace};
+                    t_trace_all = {t_trace, t_trace_multi};
+                    f_trace_all = {f_trace, f_trace_multi};
                     
                     trace_plot_data = struct(...
-                        'Color', {'w', 'r'},...
+                        'Color', {'c', 'r'},...
                         'Marker', {'x', 'o'},...
                         'MarkerSize', {4, 4},...
                         'LineWidth', {1, 1,},...
-                        'DisplayName', {'Th 3', 'Th 10'}...
+                        'DisplayName', {'Single', 'Multiple'}...
                         );
                     %** END TEST
                     %%% get the original (logged but unsmoothed) power values of the 

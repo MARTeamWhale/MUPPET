@@ -1,9 +1,18 @@
 function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % Find an ideal trace line through a call in a spectrogram by using a
-% "shortest path" searching algorithm (Dijkstra's algorithm)  
+% "shortest path" searching algorithm (Dijkstra's algorithm).
+%
+% NOTES
+% This function uses the following prefix convention for variable names:
+%   t = time value(s)
+%   f = frequency value(s)
+%   i = index of time value(s)
+%   j = index of frequency value(s)
+%   ij = linear index through time-frequency matrix
+% 
 %
 % Written by Wilfried Beslin
-% Last updated 2024-09-03
+% Last updated 2024-09-05
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -26,21 +35,17 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     p.addParameter('PenaltyCoefficient', 0.01, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('PenaltyExponent', 3, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('ClippingThreshold', Inf, @(val)validateattributes(val,{'numeric'},{'scalar'}));
-    p.addParameter('ThresholdType', 'full', @(val)validateattributes(val,{'char'},{'row'}))
     p.addParameter('MaxTimeGap', Inf, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('MaxFreqGap', Inf, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
-    p.addParameter('LogWeights', true, @(val)validateattributes(val,{'logical'},{'scalar'}));
-    p.addParameter('Method', 'dijkstra', @(val)validateattributes(val,{'char'},{'row'}));
+    p.addParameter('NumAveragingPaths', 1, @(val)validateattributes(val,{'numeric'},{'scalar','positive'}));
 
     p.parse(varargin{:})
     penalty_coeff = p.Results.PenaltyCoefficient;
     penalty_exp = p.Results.PenaltyExponent;
     clipping_th = p.Results.ClippingThreshold;
-    %th_type = p.Results.ThresholdType;
     max_t_gap = p.Results.MaxTimeGap;
     max_f_gap = p.Results.MaxFreqGap;
-    %log_weights = p.Results.LogWeights;
-    trace_method = p.Results.Method;
+    num_ave = p.Results.NumAveragingPaths;
     
     % define the penalty function for jumps across fequency
     penalty_fcn = @(df) penalty_coeff.*(df.^penalty_exp) + 1;
@@ -49,8 +54,8 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     [nf, nt] = size(logpsdm);
 
     % find the peak of the spectrogram
-    [logpsd_peak, i_peak] = max(logpsdm(:));
-    [i_f_peak, i_t_peak] = ind2sub([nf,nt], i_peak);
+    [logpsd_peak, ij_peak] = max(logpsdm(:));
+    [j_peak, i_peak] = ind2sub([nf,nt], ij_peak);
     
     % identify all nodes that are above threshold
     is_good_node = logpsdm >= clipping_th;
@@ -61,80 +66,31 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     logpsdm_anal = logpsdm - logpsd_peak;
     all_node_weights = -logpsdm_anal;
     
-    % ABANDONED EXPERIMENTAL CODE
-    %{
-    % create a matrix of node weights based on PSD intensity and identify
-    % nodes that are above threshold
-    if log_weights
-        all_node_weights = -logpsdm;
-        is_good_node = logpsdm >= clipping_th;
-        %all_node_weights = 10*log10(logpsdm);
-        %all_node_weights = abs(all_node_weights - all_node_weights(i_peak));
-    else
-        all_node_weights = -10.^(logpsdm./10);
-        is_good_node = logpsdm >= -10.^(clipping_th./10);
-        %all_node_weights = abs(logpsdm - max(logpsdm(:)));
-    end
-    %}
-    
-    % identify nodes that are above the threshold
-    %is_good_node = all_node_weights >= clipping_th;
-    % ABANDONED EXPERIMENTAL METHOD
-    %{
-    switch th_type
-        case 'full'
-            is_good_node = all_node_weights <= clipping_weight_th;
-        case 'timebin'
-            %ave_node_weights = mean(all_node_weights, 1);
-            %is_good_node = all_node_weights - ave_node_weights <= clipping_weight_th;
-            is_good_node = all_node_weights <= (mean(all_node_weights, 1) - clipping_weight_th);
-        otherwise
-            error('Unsupported threshold type "%s"', th_type)
-    end
-    %}
-    
     % create directional networks representing all possible paths from the
     % peak to the end (forward) and beginning (backward) of the spectrogram
     
     %%% forward
-    fw_node_weights = all_node_weights(:,(i_t_peak+1):end);
-    fw_net = makePathNetwork(i_f_peak, fw_node_weights, f_stft, penalty_fcn);
+    fw_node_weights = all_node_weights(:,(i_peak+1):end);
+    fw_net = makePathNetwork(j_peak, fw_node_weights, f_stft, penalty_fcn);
     
     %%% backward
-    bw_node_weights = all_node_weights(:,(i_t_peak-1):-1:1);
-    bw_net = makePathNetwork(i_f_peak, bw_node_weights, f_stft, penalty_fcn);
+    bw_node_weights = all_node_weights(:,(i_peak-1):-1:1);
+    bw_net = makePathNetwork(j_peak, bw_node_weights, f_stft, penalty_fcn);
     
-    switch trace_method
-        case 'dijkstra'
-            % find the path in the forward graph with smallest total weight
-            fw_trace_nodes = getShortestPath(fw_net, nf);
-            [i_f_trace_fw, ~] = ind2sub([nf,nt-i_t_peak], fw_trace_nodes(2:end) - 1);
-            
-            % do the same for the backwards network
-            bw_trace_nodes = getShortestPath(bw_net, nf);
-            [i_f_trace_bw, ~] = ind2sub([nf,i_t_peak-1], bw_trace_nodes(2:end) - 1);
-            
-        case 'dijkstra_averaged'
-            % find the path in the forward graph with smallest total weight
-            i_f_trace_fw = getBestPath(fw_net, fw_node_weights, 'forward');
-            
-            % do the same for the backwards network
-            i_f_trace_bw = getBestPath(bw_net, bw_node_weights, 'backward');
-            
-        otherwise
-            error('Unsupported trace method "%s"', trace_method)
-    end
+    % find the best paths through the forward and backward networks
+    j_trace_fw = getBestPath(fw_net, fw_node_weights, num_ave);
+    j_trace_bw = getBestPath(bw_net, bw_node_weights, num_ave);
     
-    % translate the trace node IDs into time-frequency points
-    i_f_trace_full = [fliplr(i_f_trace_bw), i_f_peak, i_f_trace_fw];
-    i_t_trace_full = 1:nt;
+    % combine the forward and backward paths into a single trace line
+    j_trace_full = [fliplr(j_trace_bw), j_peak, j_trace_fw];
+    i_trace_full = 1:nt;
     
-    t_trace_full = t_stft(i_t_trace_full);
-    f_trace_full = f_stft(i_f_trace_full);
+    t_trace_full = t_stft(i_trace_full);
+    f_trace_full = f_stft(j_trace_full);
     
     % create a logical matrix identifying the full trace nodes
     is_full_trace_node = false(nf,nt);
-    is_full_trace_node(sub2ind([nf,nt], i_f_trace_full, i_t_trace_full)) = true;
+    is_full_trace_node(sub2ind([nf,nt], j_trace_full, i_trace_full)) = true;
     
     % identify significant trace nodes
     is_good_trace_node = is_full_trace_node & is_good_node;
@@ -142,13 +98,13 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     
     % get the start and end points of the final trace based on which
     % points cross the threshold and tolerance for gaps
-    [i_t_trace_start_t, i_t_trace_stop_t] = getSequencEndPoints(t_trace_full, l_t_good_trace, i_t_peak, max_t_gap);
-    [i_t_trace_start_f, i_t_trace_stop_f] = getSequencEndPoints(f_trace_full', l_t_good_trace, i_t_peak, max_f_gap);
-    i_t_trace_start = max([i_t_trace_start_t, i_t_trace_start_f]);
-    i_t_trace_stop = min([i_t_trace_stop_t, i_t_trace_stop_f]);
+    [i_trace_start_t, i_trace_stop_t] = getSequencEndPoints(t_trace_full, l_t_good_trace, i_peak, max_t_gap);
+    [i_trace_start_f, i_trace_stop_f] = getSequencEndPoints(f_trace_full', l_t_good_trace, i_peak, max_f_gap);
+    i_trace_start = max([i_trace_start_t, i_trace_start_f]);
+    i_trace_stop = min([i_trace_stop_t, i_trace_stop_f]);
     
-    t_trace = t_trace_full(i_t_trace_start:i_t_trace_stop);
-    f_trace = f_trace_full(i_t_trace_start:i_t_trace_stop);
+    t_trace = t_trace_full(i_trace_start:i_trace_stop);
+    f_trace = f_trace_full(i_trace_start:i_trace_stop);
 end
 
 
@@ -207,100 +163,88 @@ function path_net = makePathNetwork(r_start, jumpnode_weights, penalty_var, pena
 end
 
 
-%% getShortestPath --------------------------------------------------------
-function shortest_path = getShortestPath(path_net, n_cols)
-% Return the "shortest" path from a source node to the edge of a
-% rectangular flow network.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    n_nodes = height(path_net.Nodes);
-
-    % get target nodes
-    tgt = ((n_nodes-n_cols)+1):n_nodes;
-    
-    % get shortest paths to all target nodes
-    [paths, dists] = shortestpathtree(path_net, 1, tgt, 'OutputForm','cell');
-    
-    % identify the shortest of all paths
-    [~, i_shortest] = min(dists);
-    shortest_path = paths{i_shortest};
-end
-
-
 %% getBestPath ------------------------------------------------------------
-function [i_row_best, i_row_all, is_top_path] = getBestPath(path_net, node_weights, plot_name)
-% Experimental variant of "getShortestPath" that returns a most likely path
-% by averaging the top few "shortest" paths from a source node to the edge 
-% of a rectangular flow network.
+function [j_best_path, j_all_paths, is_candidate_path] = getBestPath(path_net, node_weights, num_ave)
+% Returns an estimated most likely path through a rectangular flow network
+% representing a time-frequency spectrogram by averaging the top few 
+% "shortest" paths from a source node to the target nodes at the end of the
+% network (or just using the top-ranking path if "averaging" one line).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     n_nodes = height(path_net.Nodes);
-    [n_rows, n_cols] = size(node_weights);
+    [nf_net, nt_net] = size(node_weights);
 
     % get target nodes
-    tgt = ((n_nodes-n_rows)+1):n_nodes;
+    tgt = ((n_nodes-nf_net)+1):n_nodes;
     
     % get shortest paths to all target nodes
     [all_paths, path_dists] = shortestpathtree(path_net, 1, tgt, 'OutputForm','cell');
     all_path_mat = cell2mat(all_paths);
     
-    % identify all paths with distances in the lower 10th percentile
-    dist_th = prctile(path_dists, 10);
-    is_top_path = path_dists < dist_th;
-    
     % get the row position of nodes in every path
-    [i_row_all,~] = ind2sub([n_rows,n_cols], all_path_mat(:,2:end)-1);
+    [j_all_paths,~] = ind2sub([nf_net,nt_net], all_path_mat(:,2:end)-1);
     
-    % for each column, get a weighted average row position of the top nodes
-    i_row_best = zeros(1,n_cols);
-    for ii = 1:n_cols
-        i_row_ii = i_row_all(is_top_path, ii);
-        weights_ii = node_weights(i_row_ii, ii);
-        
-        i_row_ave_ii = sum(i_row_ii.*weights_ii)/sum(weights_ii);
-        i_row_best(ii) = round(i_row_ave_ii);
+    % get rank of paths based on total weight, where smaller is better
+    [~, path_rank] = sort(path_dists, 'ascend');
+    
+    % determine the best path from the top candidate paths
+    is_candidate_path = false(size(path_rank));
+    is_candidate_path(path_rank(1:num_ave)) = true;
+    if num_ave == 1
+        % just use the top path
+        j_best_path = j_all_paths(is_candidate_path,:);
+    else
+        % step through each column and create the final path by getting a
+        % weighted average row position of the top nodes
+        j_best_path = zeros(1,nt_net);
+        for ii = 1:nt_net
+            j_ii = j_all_paths(is_candidate_path, ii);
+            weights_ii = node_weights(j_ii, ii);
+
+            j_ave_ii = sum(j_ii.*weights_ii)/sum(weights_ii);
+            j_best_path(ii) = round(j_ave_ii);
+        end
+
+        %** DEBUG
+        %%% Here, I'm planning to plot:
+        %%% - all paths
+        %%% - the top paths (5th percentile weight)
+        %%% - the "best" averaged path
+        %{
+        fig = figure(2);
+        clf(fig);
+        ax = axes();
+        ax.NextPlot = 'add';
+
+        surf(-node_weights, 'EdgeColor','none');
+        axis(ax, 'xy');
+        view(ax, 0, 90);
+
+        % plot lines
+        idx_top = find(is_candidate_path);
+        idx_not_top = find(~is_candidate_path);
+
+        %%% plot non-top lines
+        for ii = 1:numel(idx_not_top)
+            idx_line = idx_not_top(ii);
+            plot3(1:nt_net, j_all_paths(idx_line,:), ones(1,nt_net), 'wo-')
+        end
+
+        %%% plot top lines
+        for ii = 1:numel(idx_top)
+            idx_line = idx_top(ii);
+            plot3(1:nt_net, j_all_paths(idx_line,:), ones(1,nt_net), 'co-', 'LineWidth',1.5)
+        end
+
+        % plot "best" line
+        plot3(1:nt_net, j_best_path, ones(1,nt_net), 'rx-', 'LineWidth',2)
+
+        %title(plot_name)
+
+        keyboard
+        %}
+        %** END DEBUG
     end
-    
-    %** DEBUG
-    %%% Here, I'm planning to plot:
-    %%% - all paths
-    %%% - the top paths (5th percentile weight)
-    %%% - the "best" averaged path
-    %{
-    fig = figure(2);
-    clf(fig);
-    ax = axes();
-    ax.NextPlot = 'add';
-    
-    surf(-node_weights, 'EdgeColor','none');
-    axis(ax, 'xy');
-    view(ax, 0, 90);
-    
-    % plot lines
-    i_top = find(is_top_path);
-    i_not_top = find(~is_top_path);
-    
-    %%% plot non-top lines
-    for ii = 1:numel(i_not_top)
-        i_line = i_not_top(ii);
-        plot3(1:n_cols, i_row_all(i_line,:), ones(1,n_cols), 'wo-')
-    end
-    
-    %%% plot top lines
-    for ii = 1:numel(i_top)
-        i_line = i_top(ii);
-        plot3(1:n_cols, i_row_all(i_line,:), ones(1,n_cols), 'co-', 'LineWidth',1.5)
-    end
-    
-    % plot "best" line
-    plot3(1:n_cols, i_row_best, ones(1,n_cols), 'rx-', 'LineWidth',2)
-    
-    title(plot_name)
-    
-    keyboard
-    %}
-    %** END DEBUG
-    
 end
 
 
