@@ -52,7 +52,7 @@ function varargout = MUPPET(varargin)
 %
 % Written by Mike Adams
 % Last updated by Wilfried Beslin
-% 2024-09-09
+% 2024-09-10
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -353,7 +353,7 @@ function varargout = MUPPET(varargin)
                 spec_ops = {'log','smooth','denoise'}; % this is the order used in LFDCS
                 
                 %%% process signal and noise spectrograms
-                psdm_anal = MUPPET.processSpec(psdm, psdmc_noise, spec_ops);
+                [psdm_anal, psdm_noise_anal] = MUPPET.processSpec(psdm, psdmc_noise, spec_ops);
                 
                 %%% OLD SPECTROGRAM PROCESSING CODE
                 %{
@@ -475,17 +475,17 @@ function varargout = MUPPET(varargin)
                     %[t_trace_relth1, f_trace_relth1] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',3, 'ThresholdType','timebin', 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
                     %[t_trace_relth, f_trace_relth] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',10, 'ThresholdType','timebin', 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
                     %[t_trace_th7, f_trace_th7] = MUPPET.getTraceLine(t_stft, f_stft_annwin, logpsdm_denoised_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',7, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
-                    [t_trace_multi, f_trace_multi] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',7, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap, 'NumAveragingPaths',5);
+                    %[t_trace_multi, f_trace_multi] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',7, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap, 'NumAveragingPaths',5);
                     
-                    t_trace_all = {t_trace, t_trace_multi};
-                    f_trace_all = {f_trace, f_trace_multi};
+                    t_trace_all = {t_trace};
+                    f_trace_all = {f_trace};
                     
                     trace_plot_data = struct(...
-                        'Color', {'c', 'r'},...
-                        'Marker', {'x', 'o'},...
-                        'MarkerSize', {4, 4},...
-                        'LineWidth', {1, 1,},...
-                        'DisplayName', {'Single', 'Multiple'}...
+                        'Color', {'r'},...
+                        'Marker', {'o'},...
+                        'MarkerSize', {4},...
+                        'LineWidth', {0.5},...
+                        'DisplayName', {'Default'}...
                         );
                     %** END TEST
                     %%% get the original (logged but unsmoothed) power
@@ -494,13 +494,6 @@ function varargout = MUPPET(varargin)
                     [~, i_f_trace] = ismember(f_trace, f_stft_annwin);
                     [~, i_t_trace] = ismember(t_trace, t_stft);
                     logp_trace = psdm_tracedata(sub2ind(size(psdm_tracedata), i_f_trace, i_t_trace'));
-                    %%% OLD
-                    %{
-                    psdm_tracedata = 10.*log10(psdm(is_f_in_annot_range,:));
-                    [~, i_f_trace] = ismember(f_trace, f_stft_annwin);
-                    [~, i_t_trace] = ismember(t_trace, t_stft);
-                    p_trace = psdm_tracedata(sub2ind(size(psdm_tracedata), i_f_trace, i_t_trace'));
-                    %}
                     
                     %%% store trace data in table
                     trace_line_w = table(t_trace', f_trace,  logp_trace, repelem(w,numel(t_trace),1), 'VariableNames',trace_table_vars);
@@ -515,8 +508,21 @@ function varargout = MUPPET(varargin)
                 
                 %%% plot trace line if specified
                 if plot_trace && ~isempty(trace_line_w)
-                    psdm_plot = psdm_anal - max(psdm_anal(:));
-                    %logpsdm_plot = logpsdm_smooth - max(logpsdm_smooth);
+                    do_log_cols = false; % CHANGE AS NEEDED
+                    if do_log_cols
+                        % process LOG colour scale
+                        plot_zshift = spec_snr_th*1.5 + 1;
+                        psdm_plot = psdm_anal - plot_zshift;
+                    
+                        caxis_val = spec_snr_th.*[-3,1.5] - plot_zshift;
+                        do_log_cols = true;
+                    else
+                        % process LINEAR colour scale
+                        psdm_plot = psdm_anal;
+                    
+                        caxis_val = spec_snr_th.*[-2,2];
+                        do_log_cols = false;
+                    end
                     
                     fig = gcf();
                     fig.Visible = 'off';
@@ -524,7 +530,7 @@ function varargout = MUPPET(varargin)
                     ax = axes();
 
                     %MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_smooth, t_trace, f_trace, [f_min_ann,f_max_ann]);
-                    MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_plot, t_trace_all, f_trace_all, [f_min_ann,f_max_ann], 'LineData',trace_plot_data);
+                    MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_plot, t_trace_all, f_trace_all, [f_min_ann,f_max_ann], 'LineData',trace_plot_data, 'CAxis',caxis_val, 'LogCols',do_log_cols);
                     ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
                     xlim(t_stft([1,end]))
 
