@@ -12,7 +12,7 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % 
 %
 % Written by Wilfried Beslin
-% Last updated 2024-09-05
+% Last updated 2024-09-10
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -34,7 +34,7 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     p = inputParser;
     p.addParameter('PenaltyCoefficient', 0.01, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('PenaltyExponent', 3, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
-    p.addParameter('ClippingThreshold', Inf, @(val)validateattributes(val,{'numeric'},{'scalar'}));
+    p.addParameter('ClippingThreshold', Inf, @(val)validateattributes(val,{'numeric'},{'2d'}));
     p.addParameter('MaxTimeGap', Inf, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('MaxFreqGap', Inf, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('NumAveragingPaths', 1, @(val)validateattributes(val,{'numeric'},{'scalar','positive'}));
