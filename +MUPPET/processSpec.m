@@ -1,4 +1,4 @@
-function psdm_out = processSpec(psdm_sig, psdmc_noise, ops)
+function [psdm_out, psdm_noise] = processSpec(psdm_sig, psdmc_noise, ops)
 % function for processing a signal spectrogram in a particular order
 % requested by the user. Processing operations are "Smooth", "Log", and
 % "Denoise". Any combination of the above may be specified, and some may be
@@ -8,7 +8,7 @@ function psdm_out = processSpec(psdm_sig, psdmc_noise, ops)
 % produce multiple noise sources.
 %
 % Written by Wilfried Beslin
-% Last updated 2024-09-09
+% Last updated 2024-09-10
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -26,6 +26,7 @@ function psdm_out = processSpec(psdm_sig, psdmc_noise, ops)
     
     % initialize variables
     psdm_anal = psdm_sig;
+    psdm_noise = [];
     psdmc_noise_anal = psdmc_noise;
     num_ops = numel(ops);
     num_noisespecs = numel(psdmc_noise);
