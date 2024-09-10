@@ -2,7 +2,7 @@ function ax = plotTraceLine(varargin)
 % plots the trace line of a call against a spectrogram.
 %
 % Written by Wilfried Beslin
-% Last updated 2024-09-03
+% Last updated 2024-09-09
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -20,16 +20,18 @@ function ax = plotTraceLine(varargin)
     p = inputParser();
     p.addRequired('t_stft', @(v)validateattributes(v,{'numeric'},{'row'}))
     p.addRequired('f_stft', @(v)validateattributes(v,{'numeric'},{'column'}))
-    p.addRequired('logpsdm', @(v)validateattributes(v,{'numeric'},{'2d'}))
+    p.addRequired('psdm', @(v)validateattributes(v,{'numeric'},{'2d'}))
     p.addRequired('t_trace', @(v)validateattributes(v,{'cell','numeric'},{})) % may be a row vector, or a cell of row vecrtors where each cell element corresponds to a seperate trace line.
     p.addRequired('f_trace', @(v)validateattributes(v,{'cell','numeric'},{})) % may be a column vector, or a cell of column vecrtors where each cell element corresponds to a seperate trace line.
     p.addOptional('annot_f_range', [], @(v)validateattributes(v,{'numeric'},{'numel',2,'increasing'}))
     p.addParameter('LineData', struct.empty(0,0), @isstruct) % struct array containing line properties, e.g. LineWidth (array has 1 element per trace)
+    p.addParameter('CAxis', [], @(v)validateattributes(v,{'numeric'},{'increasing','numel',2})) % determines the bounds of the colour scale
+    p.addParameter('LogCols', true, @(v)validateattributes(v,{'logical'},{'scalar'})) % determines if colour scale is logged or not
     
     p.parse(plot_args{:});
     t_stft = p.Results.t_stft;
     f_stft = p.Results.f_stft;
-    logpsdm = p.Results.logpsdm;
+    psdm = p.Results.psdm;
     t_trace = p.Results.t_trace;
     if isnumeric(t_trace)
         t_trace = {t_trace};
@@ -42,9 +44,11 @@ function ax = plotTraceLine(varargin)
     num_traces = numel(f_trace);
     annot_f_range = p.Results.annot_f_range;
     line_data = p.Results.LineData;
+    caxis_val = p.Results.CAxis;
+    do_logcols = p.Results.LogCols;
     
-    % translate the spectrogram to have a max of 0 dB
-    logpsdm = logpsdm - max(logpsdm(:));
+    % get a suitable maximum value to plot elements above the spectrogram
+    z_top = ceil(max(psdm(:)));
     
     % adjust data variables to generate an aesthetic spectrogram plot
     dt = mean(diff(t_stft));
@@ -55,7 +59,7 @@ function ax = plotTraceLine(varargin)
     f_surf = f_stft - df/2;
     f_surf = [f_surf; f_surf(end) + df];
     
-    psdm_surf = logpsdm;
+    psdm_surf = psdm;
     psdm_surf = [psdm_surf, psdm_surf(:,end)];
     psdm_surf = [psdm_surf; psdm_surf(end,:)];
     
@@ -69,13 +73,17 @@ function ax = plotTraceLine(varargin)
     surf(ax, t_surf, f_surf, psdm_surf, 'EdgeColor','none');
     axis(ax, 'xy');
     view(ax, 0, 90);
-    caxis(ax, [-60, -3])
-    set(ax, 'ColorScale', 'log')
+    if ~isempty(caxis_val)
+        caxis(ax, caxis_val)
+    end
+    if do_logcols
+        set(ax, 'ColorScale', 'log')
+    end
     
     % add frequency bounds if available
     if ~isempty(annot_f_range)
-        plot3(ax, t_stft([1,end]), repelem(annot_f_range(1),1,2), [1,1], 'w:', 'LineWidth',1.5)
-        plot3(ax, t_stft([1,end]), repelem(annot_f_range(2),1,2), [1,1], 'w:', 'LineWidth',1.5)
+        plot3(ax, t_stft([1,end]), repelem(annot_f_range(1),1,2), [z_top,z_top], 'w:', 'LineWidth',1.5)
+        plot3(ax, t_stft([1,end]), repelem(annot_f_range(2),1,2), [z_top,z_top], 'w:', 'LineWidth',1.5)
     end
     
     % plot trace line(s)
@@ -93,7 +101,7 @@ function ax = plotTraceLine(varargin)
             line_vars(1:2:end) = line_data_fields;
             line_vars(2:2:end) = struct2cell(line_data(ii));
         end
-       line_obj{ii} =  plot3(ax, t_trace_ii, f_trace_ii', ones(size(t_trace_ii)), line_vars{:});
+       line_obj{ii} =  plot3(ax, t_trace_ii, f_trace_ii', z_top.*ones(size(t_trace_ii)), line_vars{:});
     end
     line_obj = [line_obj{:}];
     
