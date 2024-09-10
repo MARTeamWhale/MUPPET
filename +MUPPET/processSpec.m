@@ -65,9 +65,9 @@ function [psdm_out, psdm_noise] = processSpec(psdm_sig, psdmc_noise, ops)
             case 'denoise'
                 % remove noise from signal spectrogram
                 %%% concatenate noise spectrogram if possible
-                bad_noise = cellfun('isempty',psdmc_noise);
+                bad_noise = cellfun('isempty',psdmc_noise_anal);
                 if ~all(bad_noise)
-                    psdm_noise = horzcat(psdmc_noise{~bad_noise});
+                    psdm_noise = horzcat(psdmc_noise_anal{~bad_noise});
                 else
                     warning('Insufficient noise spectrogram data available; will estimate noise from signal spectrogram instead')
                     psdm_noise = median(psdm_anal, 2);
