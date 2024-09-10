@@ -325,7 +325,6 @@ function varargout = MUPPET(varargin)
                 %%% get spectrogram and full PSD estimate of signal
                 %%% (truncated to passband frequencies)
                 [t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
-                dt_stft = median(diff(t_stft));
                 
                 %%% do the same for noise
                 %%% Here I am calculating different spectrograms for every
@@ -355,94 +354,6 @@ function varargout = MUPPET(varargin)
                 %%% process signal and noise spectrograms
                 [psdm_anal, psdm_noise_anal] = MUPPET.processSpec(psdm, psdmc_noise, spec_ops);
                 
-                %%% OLD SPECTROGRAM PROCESSING CODE
-                %{
-                
-                %%% convert spectrogram to log scale
-                logpsdm = 10.*log10(psdm);
-                
-                %%% smooth the spectrogram
-                logpsdm_smooth = MUPPET.smoothSpec(logpsdm);
-                
-                %** NEW: get noise spectrogram
-                %%% Here I am calculating different spectrograms for every
-                %%% noise piece seperately, rather than piecing the noise
-                %%% together. Why? Because piecing disjointed noise
-                %%% sections together may affect the frequency spectrum
-                %%% (think of sudden spikes causing broadband impulses).
-                %%% NOTE: for now, there is no special processing to fix
-                %%% cases where there are not enough samples at the ends to
-                %%% generate a noise spectrum - those cases are simply
-                %%% removed. But it might be good to try shrinking the
-                %%% noise windows in the future if this happens often.
-                num_noiseparts = size(noisePos,1);
-                logpsdm_noise_smooth_cell = cell(1, num_noiseparts);
-                for ii = 1:num_noiseparts
-                    try
-                        [~, ~, psdm_noise_ii, ~] = MUPPET.computeSTFT(xClip, Fs, [noisePos(ii,1), noisePos(ii,2)], stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
-                        logpsdm_noise_ii = 10.*log10(psdm_noise_ii);
-                        logpsdm_noise_smooth_ii = MUPPET.smoothSpec(logpsdm_noise_ii);
-                        logpsdm_noise_smooth_cell{ii} = logpsdm_noise_smooth_ii;
-                    catch
-                        warning('Annotation %d: Failed to create noise spectrogram for noise part %d of %d', w, ii, num_noiseparts)
-                    end
-                end
-                % remove any noise sections that could not be processed
-                logpsdm_noise_smooth_cell = logpsdm_noise_smooth_cell(~cellfun('isempty',logpsdm_noise_smooth_cell));
-                if isempty(logpsdm_noise_smooth_cell)
-                    % Handle cases where there is absolutely no noise data
-                    % available
-                    %%% For now, this is done by getting a noise estimate
-                    %%% straight from the signal spectrogram instead. But
-                    %%% this is not ideal because it can result in a few
-                    %%% calls using a different method than all the others.
-                    %%% Still, there are not many options. The only other
-                    %%% real solution I can think of is to reject the calls
-                    %%% outright, which seems excessive. I think the best
-                    %%% improvement that can be done would be to reduce the
-                    %%% number of cases which run into this issue as much
-                    %%% as possible, e.g. by getting better noise windows
-                    %%% from the rear if there aren't enough samples in
-                    %%% front.
-                    warning('No spectral noise data available for this annotation; will estimate noise from the signal spectrogram instead.')
-                    logpsdm_noise_smooth = median(logpsdm_smooth,2);
-                else
-                    % concatenate the noise spectrograms
-                    logpsdm_noise_smooth = horzcat(logpsdm_noise_smooth_cell{:});
-                end
-                
-                % create a denoised version of the signal spectrogram that
-                % shifts each frequency band such that 0 dB corresponds to
-                % the average noise level in that band
-                logpsdm_denoised = logpsdm_smooth - mean(logpsdm_noise_smooth,2);
-                
-                %** TEST1: try accounting for time-varying noise by further
-                % denoising based on the median intensity in each time bin
-                %logpsdm_denoised = logpsdm_denoised - median(logpsdm_denoised,1);
-                
-                %** TEST2: try accounting for time-varying noise by
-                % normalizing each time bin and rescaling such that the
-                % standard deviation matches the average standard deviation
-                % across all time bins in the noise spectrograms.
-                noise_std = mean(std(logpsdm_noise_smooth, 0, 2));
-                logpsdm_denoised_1 =  logpsdm_denoised - median(logpsdm_denoised,1); % for testing
-                logpsdm_denoised_prev = logpsdm_denoised; % for testing
-                logpsdm_denoised = zscore(logpsdm_denoised, 0, 1).*noise_std;
-                % DEBUG
-                ft = figure(3);
-                clf(ft);
-                axt1 = subplot(1,2,1);
-                boxplot(logpsdm_denoised_1);
-                axt1.YGrid = 'on';
-                axt2 = subplot(1,2,2);
-                boxplot(logpsdm_denoised);
-                axt2.YGrid = 'on';
-                linkaxes([axt1,axt2],'y')
-                keyboard
-                % END DEBUG
-                %** END TEST
-                %}
-                
                 % get subset of signal spectrogram that includes the user-defined
                 % frequency bounds
                 f_min_ann = PLA.annotation_fmin_hz(w);
@@ -466,17 +377,9 @@ function varargout = MUPPET(varargin)
                 try
                     [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',spec_snr_th, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
                     
-                    %** TESTING                    
-                    %[t_trace_nolog, f_trace_nolog] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',10.^(th_psdm./10), 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap, 'LogWeights',false);
-                    %[t_trace_average, f_trace_average] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap, 'Method','dijkstra_averaged');
-                    %[t_trace_reg1, f_trace_reg1] = MUPPET.getTraceLine_regression(t_stft, f_stft_trace, psdm_tracecalc, round(1./dt_stft), 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'Order',1);
-                    %[t_trace_reg2, f_trace_reg2] = MUPPET.getTraceLine_regression(t_stft, f_stft_trace, psdm_tracecalc, round(1./dt_stft), 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_psdm, 'Order',2);
-                    %[t_trace_dn, f_trace_dn] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_denoised_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',th_denoised_psdm, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
-                    %[t_trace_relth1, f_trace_relth1] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',3, 'ThresholdType','timebin', 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
-                    %[t_trace_relth, f_trace_relth] = MUPPET.getTraceLine(t_stft, f_stft_trace, psdm_tracecalc, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',10, 'ThresholdType','timebin', 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
-                    %[t_trace_th7, f_trace_th7] = MUPPET.getTraceLine(t_stft, f_stft_annwin, logpsdm_denoised_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',7, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
-                    %[t_trace_multi, f_trace_multi] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',7, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap, 'NumAveragingPaths',5);
+                    %** INCLUDE ALTERNATE TESTS HERE                   
                     
+                    %%% compile all trace line tests
                     t_trace_all = {t_trace};
                     f_trace_all = {f_trace};
                     
@@ -487,7 +390,7 @@ function varargout = MUPPET(varargin)
                         'LineWidth', {0.5},...
                         'DisplayName', {'Default'}...
                         );
-                    %** END TEST
+                    
                     %%% get the original (logged but unsmoothed) power
                     %%% values of the trace line
                     psdm_tracedata = 10.*log10(psdm(is_f_in_annot_range,:));
@@ -497,7 +400,6 @@ function varargout = MUPPET(varargin)
                     
                     %%% store trace data in table
                     trace_line_w = table(t_trace', f_trace,  logp_trace, repelem(w,numel(t_trace),1), 'VariableNames',trace_table_vars);
-                    %trace_line_w = table(t_trace', f_trace,  p_trace, repelem(w,numel(t_trace),1), 'VariableNames',trace_table_vars);
                     trace_lines = [trace_lines; trace_line_w];
                     
                 catch ME
@@ -529,7 +431,6 @@ function varargout = MUPPET(varargin)
                     clf(fig);
                     ax = axes();
 
-                    %MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_smooth, t_trace, f_trace, [f_min_ann,f_max_ann]);
                     MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_plot, t_trace_all, f_trace_all, [f_min_ann,f_max_ann], 'LineData',trace_plot_data, 'CAxis',caxis_val, 'LogCols',do_log_cols);
                     ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
                     xlim(t_stft([1,end]))
