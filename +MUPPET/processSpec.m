@@ -19,7 +19,7 @@ function [psdm_out, psdm_noise] = processSpec(psdm_sig, psdmc_noise, ops)
     p.parse(psdm_sig, psdmc_noise, ops);
     
     % further validate operations
-    valid_ops = {'log','smooth','denoise'};
+    valid_ops = {'log','smooth','denoise1','denoise2'};
     ops = lower(ops);
     assert(all(ismember(ops, valid_ops)), 'One or more operation is unrecognized')
     assert(numel(ops) == numel(unique(ops)), 'Cannot specify an operation more than once!')
@@ -30,7 +30,7 @@ function [psdm_out, psdm_noise] = processSpec(psdm_sig, psdmc_noise, ops)
     psdmc_noise_anal = psdmc_noise;
     num_ops = numel(ops);
     num_noisespecs = numel(psdmc_noise);
-    process_noise = ismember('denoise',ops);
+    process_noise = ismember('denoise1',ops);
     
     % loop through each operation
     for ii = 1:num_ops
@@ -62,7 +62,7 @@ function [psdm_out, psdm_noise] = processSpec(psdm_sig, psdmc_noise, ops)
                     end
                 end
                 
-            case 'denoise'
+            case 'denoise1'
                 % remove noise from signal spectrogram
                 %%% concatenate noise spectrogram if possible
                 bad_noise = cellfun('isempty',psdmc_noise_anal);
@@ -78,12 +78,13 @@ function [psdm_out, psdm_noise] = processSpec(psdm_sig, psdmc_noise, ops)
                 %%% to the average noise level in that band
                 psdm_anal = psdm_anal - mean(psdm_noise, 2);
                 
-                %%% apply further corrections to account for time-varying
-                %%% noise by equalizing the medians of each time bin
-                psdm_anal = psdm_anal - median(psdm_anal, 1);
-                
                 %%% update noise processing flag
                 process_noise = false;
+                
+            case 'denoise2'
+                %%% account for time-varying noise by equalizing the
+                %%% medians of each time bin
+                psdm_anal = psdm_anal - median(psdm_anal, 1);
                 
             otherwise
                 error('Unsupported operation "%s"',op_ii)
