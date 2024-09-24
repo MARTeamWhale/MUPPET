@@ -67,12 +67,14 @@ function varargout = MUPPET(varargin)
     ip.addParameter('OUTPUT_FOLDER_LOCATION', '', @isfolder)
     ip.addParameter('PARAMFILE', '', @isfile)
     ip.addParameter('PLOT_TRACE_LINES', false, @(v)validateattributes(v,{'logical'},{'scalar'}))
+    ip.addParameter('EXPORT_SPECTROGRAMS', false, @(v)validateattributes(v,{'logical'},{'scalar'})) % for debugging
     ip.parse(varargin{:})
     PATH2INPUT = ip.Results.PAMLAB_DATA_FOLDER;
     PATH2DATA = ip.Results.WAV_FILE_FOLDER;
     PATH2OUTPUTDIRECTORY = ip.Results.OUTPUT_FOLDER_LOCATION;
     PARAMFILE = ip.Results.PARAMFILE;
     plot_trace = ip.Results.PLOT_TRACE_LINES;
+    export_specs = ip.Results.EXPORT_SPECTROGRAMS;
     
     % prompt user to specify I/O folder paths interactively if they were
     % not entered via the command line
@@ -202,6 +204,12 @@ function varargout = MUPPET(varargin)
             PATH2OUTPUT_TRACEPLOTS = fullfile(PATH2OUTPUT, [outfile_refname,'_TracePlots']);
             mkdir(PATH2OUTPUT_TRACEPLOTS)
         end
+        
+        %%% set up spectrogram export folder if relevant
+        if export_specs
+            PATH2OUTPUT_SPECS = fullfile(PATH2OUTPUT, [outfile_refname,'_Spectrograms']);
+            mkdir(PATH2OUTPUT_SPECS)
+        end
 
         %%% initialize waitbar
         num_annotations = height(PLA);
@@ -324,7 +332,8 @@ function varargout = MUPPET(varargin)
                 
                 %%% get spectrogram and full PSD estimate of signal
                 %%% (truncated to passband frequencies)
-                [t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
+                %[t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
+                [t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, annotPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                 
                 %%% do the same for noise
                 %%% Here I am calculating different spectrograms for every
@@ -349,42 +358,56 @@ function varargout = MUPPET(varargin)
                 end
                 
                 %%% set spectrogram processing order 
-                spec_ops = {'log','smooth','denoise'}; % this is the order used in LFDCS
+                spec_ops = {'log','smooth','denoise1'}; % this is the order used in LFDCS
                 
                 %%% process signal and noise spectrograms
                 [psdm_anal, psdm_noise_anal] = MUPPET.processSpec(psdm, psdmc_noise, spec_ops);
+                psdm_noise_anal_demeaned = psdm_noise_anal - mean(psdm_noise_anal, 2);
                 
                 % get subset of signal spectrogram that includes the user-defined
                 % frequency bounds
                 f_min_ann = PLA.annotation_fmin_hz(w);
                 f_max_ann = PLA.annotation_fmax_hz(w);
                 is_f_in_annot_range = f_stft >= f_min_ann & f_stft <= f_max_ann;
-                %logpsdm_denoised_annwin = logpsdm_denoised(is_f_in_annot_range,:);
                 psdm_anal_annwin = psdm_anal(is_f_in_annot_range,:);
                 f_stft_annwin = f_stft(is_f_in_annot_range);
                 
+                %%% export raw (unprocessed) spectrograms, if requested
+                if export_specs
+                    PATH2OUTPUT_SPEC_FILE = fullfile(PATH2OUTPUT_SPECS, [outfile_refname,'_spectrogram_',num2str(w),'.mat']);
+                    save(PATH2OUTPUT_SPEC_FILE, 'f_stft', 't_stft', 'psdm', 'psdmc_noise', 'is_f_in_annot_range');
+                end
+                
                 % set noise threshold for pitch tracing
-                spec_snr_th = 10;
+                %spec_snr_th = 10;
+                %spec_snr_th = max([10, prctile(psdm_anal_annwin(:), 95)]);
+                spec_snr_th = 3*std(psdm_noise_anal_demeaned(:)); % 3 standard deviations above the noise spectrogram
                 
                 %%% set other pitch tracing parameters
                 %%% (hard-coded for now)
                 trace_penalty_coeff = 0.01; %0.008;
                 trace_penalty_exp = 3; %2;
-                trace_max_t_gap = Inf; %0.333;
-                trace_max_f_gap = Inf; %10;
                 
                 %%% find the best trace line
                 try
-                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'ClippingThreshold',spec_snr_th, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
+                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyThreshold',spec_snr_th, 'EnergyPercent',EnergyPercent);
                     
-                    %** INCLUDE ALTERNATE TESTS HERE                   
+                    %** INCLUDE ALTERNATE TESTS HERE  
+                    %[t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
+                    %[t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th1);
+                    %[t_trace_clipped, f_trace_clipped] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th1, 'Threshold2',spec_snr_th2, 'TimeGapTol',0.2, 'MinSegDur',1);
+                    %[t_trace_length, f_trace_length] = MUPPET.getTraceLine_PercentEnergy(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyPercent',EnergyPercent, 'ScoreType','length');
+                    %[t_trace_combined, f_trace_combined] = MUPPET.getTraceLine_PercentEnergy(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyPercent',EnergyPercent, 'ScoreType','combined');
+                    %[t_trace_single, f_trace_single] = MUPPET.getTraceLine_PercentEnergySingle(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyPercent',EnergyPercent);
+                    %[t_trace_3sd, f_trace_3sd] = MUPPET.getTraceLine_Hybrid(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyThreshold',3*std(psdm_noise_anal_demeaned(:)), 'EnergyPercent',EnergyPercent);
+                    
                     
                     %%% compile all trace line tests
                     t_trace_all = {t_trace};
                     f_trace_all = {f_trace};
                     
                     trace_plot_data = struct(...
-                        'Color', {'r'},...
+                        'Color', {'m'},...
                         'Marker', {'o'},...
                         'MarkerSize', {4},...
                         'LineWidth', {0.5},...

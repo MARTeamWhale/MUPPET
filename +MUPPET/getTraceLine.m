@@ -1,6 +1,7 @@
 function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % Find an ideal trace line through a call in a spectrogram by using a
-% "shortest path" searching algorithm (Dijkstra's algorithm).
+% "shortest path" searching algorithm (Dijkstra's algorithm) followed by
+% energy-based clipping.
 %
 % NOTES
 % This function uses the following prefix convention for variable names:
@@ -12,7 +13,7 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % 
 %
 % Written by Wilfried Beslin
-% Last updated 2024-09-10
+% Last updated 2024-09-24
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -22,6 +23,8 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % frequencies with the discrete frequenciy vector of the PSD matrix.
 % - 2024-08-23: will try to use multiple Dijkstra paths to determine the
 % final trace line insted of just one - will see if this improves results.
+% UPDATE: there did not seem to be noticable improvements; nevertheless,
+% the option to merge multiple paths into one remains in the function.
 % - 2024-09-03: I had attempted to allow negative weights to represent
 % nodes that are below the average noise level. The Dijkstra algorithm does
 % not support negative weights, but according to the MATLAB documentation,
@@ -34,17 +37,15 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     p = inputParser;
     p.addParameter('PenaltyCoefficient', 0.01, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('PenaltyExponent', 3, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
-    p.addParameter('ClippingThreshold', Inf, @(val)validateattributes(val,{'numeric'},{'2d'}));
-    p.addParameter('MaxTimeGap', Inf, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
-    p.addParameter('MaxFreqGap', Inf, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
+    p.addParameter('EnergyThreshold', -Inf, @(val)validateattributes(val,{'numeric'},{'scalar'}));
+    p.addParameter('EnergyPercent', 90, @(val)validateattributes(val,{'numeric'},{'scalar','positive','<=',100}));
     p.addParameter('NumAveragingPaths', 1, @(val)validateattributes(val,{'numeric'},{'scalar','positive'}));
 
     p.parse(varargin{:})
     penalty_coeff = p.Results.PenaltyCoefficient;
     penalty_exp = p.Results.PenaltyExponent;
-    clipping_th = p.Results.ClippingThreshold;
-    max_t_gap = p.Results.MaxTimeGap;
-    max_f_gap = p.Results.MaxFreqGap;
+    eng_th = p.Results.EnergyThreshold;
+    eng_perc = p.Results.EnergyPercent;
     num_ave = p.Results.NumAveragingPaths;
     
     % define the penalty function for jumps across fequency
@@ -56,9 +57,6 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     % find the peak of the spectrogram
     [logpsd_peak, ij_peak] = max(logpsdm(:));
     [j_peak, i_peak] = ind2sub([nf,nt], ij_peak);
-    
-    % identify all nodes that are above threshold
-    is_good_node = logpsdm >= clipping_th;
     
     % create a matrix of node weights based on PSD intensity. 
     % For this, the spectrogram must be scaled such that the peak is 0 dB,
@@ -88,21 +86,22 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     t_trace_full = t_stft(i_trace_full);
     f_trace_full = f_stft(j_trace_full);
     
-    % create a logical matrix identifying the full trace nodes
-    is_full_trace_node = false(nf,nt);
-    is_full_trace_node(sub2ind([nf,nt], j_trace_full, i_trace_full)) = true;
+    % get the start and end points of the final trace based on percentage
+    % of cumulative energy
+    ij_trace_full = sub2ind([nf,nt], j_trace_full, i_trace_full);
+    p_trace_full = 10.^(logpsdm(ij_trace_full)./10);
+    [i_trace_start_percent,i_trace_stop_percent] = MUPPET.calcEng(sqrt(p_trace_full), eng_perc);
     
-    % identify significant trace nodes
-    is_good_trace_node = is_full_trace_node & is_good_node;
-    l_t_good_trace = any(is_good_trace_node, 1);
+    % refine the start and end points of the final trace based on which
+    % points cross the threshold
+    logp_trace_percent = logpsdm(sub2ind([nf,nt], j_trace_full,i_trace_full));
+    logp_trace_percent(1:(i_trace_start_percent-1)) = -Inf;
+    logp_trace_percent((i_trace_stop_percent+1):end) = -Inf;
     
-    % get the start and end points of the final trace based on which
-    % points cross the threshold and tolerance for gaps
-    [i_trace_start_t, i_trace_stop_t] = getSequencEndPoints(t_trace_full, l_t_good_trace, i_peak, max_t_gap);
-    [i_trace_start_f, i_trace_stop_f] = getSequencEndPoints(f_trace_full', l_t_good_trace, i_peak, max_f_gap);
-    i_trace_start = max([i_trace_start_t, i_trace_start_f]);
-    i_trace_stop = min([i_trace_stop_t, i_trace_stop_f]);
+    i_trace_start = find(logp_trace_percent >= eng_th, 1, 'first');
+    i_trace_stop = find(logp_trace_percent >= eng_th, 1, 'last');
     
+    % get time and frequency values of the trace line
     t_trace = t_trace_full(i_trace_start:i_trace_stop);
     f_trace = f_trace_full(i_trace_start:i_trace_stop);
 end
@@ -244,40 +243,5 @@ function [j_best_path, j_all_paths, is_candidate_path] = getBestPath(path_net, n
         keyboard
         %}
         %** END DEBUG
-    end
-end
-
-
-%% getSequenceEndpoints ---------------------------------------------------
-function [i_start, i_stop] = getSequencEndPoints(full_seq, is_good, i_origin, max_gap)
-% This function determines where gaps occur in a sequence, and returns a
-% start and end point about an origin point point that depends on the siZe
-% of the gaps (large gaps cut the sequence short).
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % backward analysis
-    i_bw = i_origin:-1:1;
-    j_stop_bw = findEndPoint(full_seq(i_bw), is_good(i_bw), max_gap);
-    i_start = i_origin - j_stop_bw + 1;
-    
-    % forward analysis
-    i_fw = i_origin:numel(full_seq);
-    j_stop_fw = findEndPoint(full_seq(i_fw), is_good(i_fw), max_gap);
-    i_stop = i_origin + j_stop_fw - 1;
-    
-    
-    % NESTED FUNCTION: findEndPoint .......................................
-    function j_stop = findEndPoint(seq_sub, is_good_sub, max_gap)
-        
-        % get differences between points
-        seq_sub_diff = abs(diff(seq_sub(is_good_sub)));
-        
-        % find the first instance where the difference is greater than the
-        % max allowed. Here I am assuming that the sequence never starts in
-        % a gap.
-        j_stop = find(seq_sub_diff > max_gap, 1, 'first');
-        if isempty(j_stop)
-            j_stop = find(is_good_sub, 1, 'last');
-        end
     end
 end
