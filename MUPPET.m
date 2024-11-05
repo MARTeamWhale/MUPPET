@@ -219,6 +219,9 @@ function varargout = MUPPET(varargin)
 
         %%% process each annotation
         for w = 1:num_annotations %Start rows loop
+            if PLA.Species(w) == "NN"
+                continue
+            end
             %%% update waitbar
             t_elapsed = toc;
             t_rem = t_elapsed.*((num_annotations-(w-1))/(w-1));
@@ -285,8 +288,8 @@ function varargout = MUPPET(varargin)
             end
 
             %%% Get Start of annotation and End of annotation
-            PLA_Start = PLA.annotation_relative_start_time_sec(w);
-            PLA_Stop = PLA.annotation_relative_end_time_sec(w);
+            PLA_Start = PLA.LeftTime_sec_(w);
+            PLA_Stop = PLA.RightTime_sec_(w);
 
             % Start90 = PLA_StartTime90 + RelativeStartTime;
             % End90 = PLA_StopTime90 + RelativeStartTime;
@@ -295,8 +298,8 @@ function varargout = MUPPET(varargin)
             %%% start and stop times
             others_in_wav = strcmp(PLA.filename, FileName);
             others_in_wav(w) = false;
-            PLA_Start_other = PLA.annotation_relative_start_time_sec(others_in_wav);
-            PLA_Stop_other = PLA.annotation_relative_end_time_sec(others_in_wav);
+            PLA_Start_other = PLA.LeftTime_sec_(others_in_wav);
+            PLA_Stop_other = PLA.RightTime_sec_(others_in_wav);
 
             %%% extract bandpass-filtered signal and noise samples.
             %%% NOTE: the number of buffer samples at the ends of the clip
@@ -366,8 +369,8 @@ function varargout = MUPPET(varargin)
                 
                 % get subset of signal spectrogram that includes the user-defined
                 % frequency bounds
-                f_min_ann = PLA.annotation_fmin_hz(w);
-                f_max_ann = PLA.annotation_fmax_hz(w);
+                f_min_ann = PLA.BottomFreq_Hz_(w);
+                f_max_ann = PLA.TopFreq_Hz_(w);
                 is_f_in_annot_range = f_stft >= f_min_ann & f_stft <= f_max_ann;
                 psdm_anal_annwin = psdm_anal(is_f_in_annot_range,:);
                 f_stft_annwin = f_stft(is_f_in_annot_range);
