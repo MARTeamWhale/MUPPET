@@ -50,7 +50,7 @@ function varargout = MUPPET(varargin)
 %   concatenated trace line points.
 %   .......................................................................
 %
-% Written by Mike Adams
+% Written by Mike Adams and Wilfried Beslin
 % Last updated by Mike Adams
 % 2024-11-06
 %
