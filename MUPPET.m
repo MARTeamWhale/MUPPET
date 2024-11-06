@@ -51,8 +51,8 @@ function varargout = MUPPET(varargin)
 %   .......................................................................
 %
 % Written by Mike Adams
-% Last updated by Wilfried Beslin
-% 2024-09-10
+% Last updated by Mike Adams
+% 2024-11-06
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
