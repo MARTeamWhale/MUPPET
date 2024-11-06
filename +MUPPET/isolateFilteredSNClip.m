@@ -185,7 +185,7 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipS
         % apply digital filter
         xClipFilt = noDelayFilt(dFilter, xClip);
         
-        %%% downsample here?
+        %%% Cheack Fs and downsample if required
         
         % isolate specific signal bounds based on a percentage of 
         % cumulative energy
