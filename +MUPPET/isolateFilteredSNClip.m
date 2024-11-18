@@ -193,10 +193,18 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipS
         
         if fsOriginal<fsResampled
             disp('WAV file below required sample rate; cancelling')
-        elseif fsOriginal>fsResampled %add to parameter file
+        else
             dsFactor = fsOriginal/fsResampled;
-            dsXClipFilt = downsample(xClipFilt, dsFactor);
+            if dsFactor ~= 1
+            dsXClipFilt = downsample(xClipFilt, dsFactor); %temporary variable
+            end
         end
+        
+        %convert samples to be relative to new sample rate
+        j_targetSigBoxPos =  j_targetSigBoxPos/dsFactor;
+        j_otherSigBoxPos = j_otherSigBoxPos/dsFactor;
+        numNoiseDistSamples = numNoiseDistSamples/dsFactor;
+       
         
         % isolate specific signal bounds based on a percentage of 
         % cumulative energy
@@ -242,7 +250,7 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipS
             ];
         
         % get start time of clip
-        tClipStart = i_clipStart/fs;
+        tClipStart = i_clipStart/fsOriginal;
         
         %** old code for isolating noise
         %{

@@ -314,6 +314,9 @@ function varargout = MUPPET(varargin)
                 'ClipBufferSize', (stftWinSize*0.75)/Fs ... % the factor of 75% is probably overkill, but will stick with this for now
                 );
             
+           
+            
+            
             %%% calculate SNR and other features
             %%% (leave NaN if not possible because signal is too close to 
             %%% endpoints)
