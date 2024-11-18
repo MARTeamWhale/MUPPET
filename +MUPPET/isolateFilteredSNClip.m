@@ -19,7 +19,9 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipS
 %   .......................................................................
 %   "x" - vector representing an audio time series (must be a column)
 %   .......................................................................
-%   "fs" - sampling rate, in Hertz
+%   "fsOriginal" - sampling rate of WAV file, in Hertz
+%   .......................................................................
+%   "fsResampled" - sampling rate if downsampling is required 
 %   .......................................................................
 %   "targetSigBoxPos" - 2-element vector representing the start and stop
 %       times of a window containing the target signal, in seconds
@@ -105,7 +107,8 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipS
     % parse input
     p = inputParser();
     p.addRequired('x', @(val)validateattributes(val,{'numeric'},{'column'}))
-    p.addRequired('fs', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
+    p.addRequired('fsOriginal', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
+    p.addRequired('fsResampled', @(val)validateattributes(val,{'numeric'},{'scalar','positive'}))
     p.addRequired('targetSigBoxPos', @(val)validateattributes(val,{'numeric'},{'numel',2}))
     p.addRequired('dFilter', @(val)validateattributes(val,{'digitalFilter'},{'scalar'}))
     p.addParameter('EnergyPercent', 90, @(val)validateattributes(val,{'numeric'},{'scalar','positive','<=',100}))
@@ -117,7 +120,8 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipS
     p.parse(varargin{:})
     %%% required input
     x = p.Results.x;
-    fs = p.Results.fs;
+    fsOriginal = p.Results.fsOriginal;
+    fsResampled = p.Results.fsResampled;
     targetSigBoxPos = p.Results.targetSigBoxPos;
     dFilter = p.Results.dFilter;
     %%% optional input
@@ -139,7 +143,7 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipS
     %%% ks_ = relative to the signal sample isolated from the clip 
     %%%     (from annotation box, not the cumulative energy limits)
     %%% ...................................................................
-    secs2samples = @(t) round(t*fs);
+    secs2samples = @(t) round(t*fsOriginal);
     %%% signal boxes
     i_targetSigBoxPos = secs2samples(targetSigBoxPos);
     i_otherSigBoxPos = secs2samples(otherSigBoxPos);
@@ -186,6 +190,13 @@ function [xClipFilt, j_targetSigEnergyPos, j_noisePos, j_targetSigBoxPos, tClipS
         xClipFilt = noDelayFilt(dFilter, xClip);
         
         %%% Cheack Fs and downsample if required
+        
+        if fsOriginal<fsResampled
+            disp('WAV file below required sample rate; cancelling')
+        elseif fsOriginal>fsResampled %add to parameter file
+            dsFactor = fsOriginal/fsResampled;
+            dsXClipFilt = downsample(xClipFilt, dsFactor);
+        end
         
         % isolate specific signal bounds based on a percentage of 
         % cumulative energy
