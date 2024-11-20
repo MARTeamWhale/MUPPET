@@ -51,8 +51,8 @@ function varargout = MUPPET(varargin)
 %   .......................................................................
 %
 % Written by Mike Adams and Wilfried Beslin
-% Last updated by Mike Adams
-% 2024-11-06
+% Last updated by Wilfried Beslin
+% 2024-11-20
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -262,27 +262,29 @@ function varargout = MUPPET(varargin)
                         );
                 end
                 
-                %%% define spectrogram parameters (TEMPORARILY HARDCODED)
+                %%% define spectrogram and downsampling parameters 
+                %%% (TEMPORARILY HARDCODED)
+                FsResampled = 8000;
                 spectype = 'custom'; % CHANGE AS NEEDED
                 switch spectype
                     case 'MERIDIAN'
                         %%%%%% based on MERIDIAN settings for NARW;
                         %%%%%% tends to be very hi-res for blue calls, and
                         %%%%%% slow to run/render
-                        stftWinSize = 2^nextpow2(round(0.256*Fs));
-                        stftOverlap = stftWinSize - round(0.032*Fs);
+                        stftWinSize = 2^nextpow2(round(0.256*FsResampled));
+                        stftOverlap = stftWinSize - round(0.032*FsResampled);
                         stftN = stftWinSize;
                     case 'longcalls'
                         %%%%%% based on PAMlab settings for long calls;
                         %%%%%% very coarse temporal resolution
-                        stftWinSize = round(2*Fs);
-                        stftOverlap = stftWinSize - round(0.5*Fs);
-                        stftN_candidates = 2.^(nextpow2(Fs/0.4) + [-1,0]);
-                        stftN = interp1(stftN_candidates, stftN_candidates, Fs/0.4, 'nearest');
+                        stftWinSize = round(2*FsResampled);
+                        stftOverlap = stftWinSize - round(0.5*FsResampled);
+                        stftN_candidates = 2.^(nextpow2(FsResampled/0.4) + [-1,0]);
+                        stftN = interp1(stftN_candidates, stftN_candidates, FsResampled/0.4, 'nearest');
                     case 'custom'
                         %%%%%% finer resolution than longcalls
-                        stftWinSize = 2^nextpow2(round(Fs));
-                        stftOverlap = stftWinSize - round(0.1*Fs);
+                        stftWinSize = 2^nextpow2(round(FsResampled));
+                        stftOverlap = stftWinSize - round(0.1*FsResampled);
                         stftN = stftWinSize;
                 end
             end
@@ -306,16 +308,13 @@ function varargout = MUPPET(varargin)
             %%% must be large enough to accommodate STFT windows for
             %%% generation of spectrograms and Welch spectra; thus, buffer
             %%% size is dependent on STFT parameters.
-            [xClip, sigPos, noisePos, annotPos, tClipStart] = MUPPET.isolateFilteredSNClip(x, Fs, 8000, [PLA_Start,PLA_Stop], bandpass_filter,...
+            [xClip, sigPos, noisePos, annotPos, tClipStart] = MUPPET.isolateFilteredSNClip(x, Fs, FsResampled, [PLA_Start,PLA_Stop], bandpass_filter,...
                 'NoiseDistance', NoiseDistance,...
                 'IdealNoiseSize', NoiseSize,...
                 'RemoveFromNoise', [PLA_Start_other,PLA_Stop_other],...
                 'EnergyPercent', EnergyPercent,...
-                'ClipBufferSize', (stftWinSize*0.75)/Fs ... % the factor of 75% is probably overkill, but will stick with this for now
+                'ClipBufferSize', (stftWinSize*0.75)/FsResampled ... % the factor of 75% is probably overkill, but will stick with this for now
                 );
-            
-           
-            
             
             %%% calculate SNR and other features
             %%% (leave NaN if not possible because signal is too close to 
@@ -333,13 +332,13 @@ function varargout = MUPPET(varargin)
                 
                 %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = MUPPET.calculateSNR(xSignal, xNoise);
                 [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = MUPPET.calculateSNR(xSignal, xNoise, 'CapNoise',true);
-                PLA.SNRCalc_SignalDuration(w) = numel(xSignal)/Fs;
-                PLA.SNRCalc_NoiseDuration(w) = numel(xNoise)/Fs;
+                PLA.SNRCalc_SignalDuration(w) = numel(xSignal)/FsResampled;
+                PLA.SNRCalc_NoiseDuration(w) = numel(xNoise)/FsResampled;
                 
                 %%% get spectrogram and full PSD estimate of signal
                 %%% (truncated to passband frequencies)
                 %[t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
-                [t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, annotPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
+                [t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, FsResampled, annotPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                 
                 %%% do the same for noise
                 %%% Here I am calculating different spectrograms for every
@@ -356,7 +355,7 @@ function varargout = MUPPET(varargin)
                 psdmc_noise = cell(1, num_noiseparts);
                 for ii = 1:num_noiseparts
                     try
-                        [~, ~, psdm_noise_ii, ~] = MUPPET.computeSTFT(xClip, Fs, [noisePos(ii,1), noisePos(ii,2)], stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
+                        [~, ~, psdm_noise_ii, ~] = MUPPET.computeSTFT(xClip, FsResampled, [noisePos(ii,1), noisePos(ii,2)], stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                         psdmc_noise{ii} = psdm_noise_ii;
                     catch
                         warning('Annotation %d: Failed to create noise spectrogram for noise part %d of %d', w, ii, num_noiseparts)
@@ -481,7 +480,7 @@ function varargout = MUPPET(varargin)
                 
                 %%% extract call parameters and store to table
                 sigPosRel = sigPos - annotPos(1); % energy-based signal position relative to start of annotation
-                call_params_w = MUPPET.extractCallParams(sigPosRel, Fs, f_stft, psd, EnergyPercent, trace_line_w);
+                call_params_w = MUPPET.extractCallParams(sigPosRel, FsResampled, f_stft, psd, EnergyPercent, trace_line_w);
             else
                 % cannot calculate parameters for unsuitable calls, so just
                 % pass NaNs to parameter extraction routine
