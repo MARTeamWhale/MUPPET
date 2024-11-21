@@ -178,7 +178,7 @@ function varargout = MUPPET(varargin)
     end
     
     %%% set trace line table variable names
-    trace_table_vars = {'RelTime','Freq','Power_dB','CallNumber'};
+    trace_table_vars = {'RelTime','Freq','Power_dB','Call_ID'};
 
     %%% process each artefact file
     for p = 1:numAnnotations %read in in Pamlab csv (Loop) Possibly redundant...
@@ -489,7 +489,7 @@ function varargout = MUPPET(varargin)
             end
             
             %%% add call parameters to running table
-            call_params_w.CallID = w; %keep track of call ID
+            call_params_w.Call_ID = w; %keep track of call ID
             call_params = [call_params; struct2table(call_params_w)];
             
         end %call loop
