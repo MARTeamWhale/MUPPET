@@ -1,4 +1,4 @@
 ﻿Species,Call_Type,Lower_Passband_Frequency,Upper_Passband_Frequency,Stopband_Rolloff_Bandwidth,Noise_Distance,Ideal_Noise_Duration,Signal_Energy_Percent
-Blue Whale,Audible,30,120,10,1,10,90
+Blue Whale,Audible,22,118,10,1,10,90
 Blue Whale,Tonal,40,120,10,1,10,90
 Red Whale,Tonal,200,300,10,1,,90

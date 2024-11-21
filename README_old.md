@@ -5,23 +5,23 @@ Maritimes Team Whale
 -------------------
 Goal: A tool for use in cetacean research
 
-
+***Old SNR tool description follows***
 -------------------
 
 ## Introduction
-This tool is for use in calculating the spectral characteristics for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
-Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script<sup>*</sup> with several underlying functions. The helper script (`MUPPET`) imports the output of JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the underlying functions to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a Kaiser window-based FIR filter. After bandpass filtering, precise start and end times of the signals are determined based on a user-specified percentage of the energy within the signal window. Noise samples are isolated relative to the energy-based start time of the signal. Ideal duration of the noise window may either be set by the user to some common value (e.g., 10 secs), or be made equal to the signal duration. If a noise window happens to includes parts of other signals that were annotated in PAMLAB, then those parts will be eliminated from the noise window (thereby shortening the noise window). The clipped and bandpassed call and noise samples are then used to calculate both time and spectral parameters. 
+This tool is for use in calculating the signal to noise (SNR) for cetacean vocalizations obtained using JASCO's PAMLAB annotation software.
+Initial development was focused on Blue Whale audible calls. The tool currently exists as a helper script<sup>*</sup> with several underlying functions. The helper script (`Baleen_SNR_Tool`) imports the output of JASCO's PAMLAB annotation files, extracts the needed inputs, and then matches the annotated calls to and imports the appropriate .wav files. These inputs are passed to the underlying functions, the first (`snr.extractSN`) to extract the data within the .wav files that corresponds to the annotated call and a sample of noise taken some time before the call. These clippings are bandpassed to the frequencies of interest using a Kaiser window-based FIR filter. Filtering is performed within `snr.extractSN` using the `snr.noDelayFilt` function, which applies the filter such that no time delays are introduced in the output. After bandpass filtering, precise start and end times of the signal are determined based on a user-specified percentage of the energy within the signal window using the function `snr.calcEng`. Noise samples are isolated relative to the energy-based start time of the signal. Ideal duration of the noise window may either be set by the user to some common value (e.g., 10 secs), or be made equal to the signal duration. If a noise window happens to includes parts of other signals that were annotated in PAMLAB, then those parts will be eliminated from the noise window (thereby shortening the noise window). The clipped and bandpassed call and noise samples are then passed to the function `snr.calculateSNR` to calculate the SNR value. The final SNR value is then appended to JASCO's PAMLAB annotation dataframe.
 
 <sup>*</sup>_The helper script is actually implemented as a function that can optionally accept input arguments for greater flexibility. This will be discussed further in the section "Running the Tool" below_.
 
 ## Set up
 
 ### Initial Start Up
-1) Either clone or download the .zip and unzip the MUPPET repository to your local machine.
+1) Either clone or download the .zip and unzip the SNR_Tool_Development repository to your local machine.
 2) Add this new directory with all of its subfolders to your MATLAB path.
 ### Requirements
 
-The tool requires inputs to calculate the parameters. These include:
+The tool requires inputs to calculate the SNR values. These include:
   -  SNR_PARAMS.csv: a parameter file which contains the filtering and noise presets for each species' call type. This file has values for:
       - **Species** - The species of interest (e.g. Blue Whale)
       - **Call_Type** - The call type (e.g. Audible, Tonal, etc...) 
@@ -31,68 +31,45 @@ The tool requires inputs to calculate the parameters. These include:
       - **Noise_Distance** - Value to determine how far before the ***signal*** the ***noise*** sample will be taken
       - **Ideal_Noise_Duration** - The target duration that the noise window should have (seconds). This parameter can also be left empty, in which case the target noise duration will be equal to the signal duration. Note that the actual noise duration may be shorter than ideal, if the noise window contains other signals that must be removed to avoid contaminated noise estimates.
       - **Signal_Energy_Percent** - The percentage of energy within a signal window that determines the start and stop times of a signal based on cumulative energy. For example, a value of 90 will mark the start time at 5% of the cumulative energy in the window, and the stop time at 95%.
-- A directory containing the .csv annotation output generated by JASCO's PAMLAB. The inputs used from these files are:
+- A directory containing the .csv artefacts output generated by JASCO's PAMLAB. These files contain the artefact output of the manually selected calls. The inputs used from these files are:
   - **Filename** - used to identify the original .wav file containing the call
   - **Relative Start Time** - The manually selected start time in seconds of the call artefact relative to the start of the .wav file
 - A directory containing all the .wav files for which PAMLAB artefact .csv files exist. *Note: This directory can contain additional .wav files, but **must** contain all .wav files for which PAMLAB annotations exist*   
 
 ## Running the Tool
 ### Basic Usage
-To use the tool, open MATLAB and run the file _MUPPET.m_. The most basic way to run this file is by pressing the "Run" button in the MATLAB editor, or by typing `MUPPET` in the Command Window. This will load the parameters in the file _SNR_PARAMS.csv_, and you will be prompted to set the input and output file paths.
+To use the tool, open MATLAB and run the file _Baleen_SNR_Tool.m_. The most basic way to run this file is by pressing the "Run" button in the MATLAB editor, or by typing `Baleen_SNR_Tool` in the Command Window. This will load the parameters in the file _SNR_PARAMS.csv_, and you will be prompted to set the input and output file paths.
 
-When running, the tool will also prompt the user to specify which species and call type to analyze. This dictates which row of the parameter file will be read. ***For each run of the tool, all annotations in a CSV file will be processed using the species and call type that were specified by the user at runtime using the PARAM file; the tool does not interpret species or call type information within the annotation files themselves.***
+When running, the tool will also prompt the user to specify which species and call type to analyze. This dictates which row of the parameter file will be read. ***For each run of the SNR tool, all annotations in a CSV file will be processed using the species and call type that were specified by the user at runtime; the tool does not interpret species or call type information within the annotation files themselves.***
 
 ### Input Arguments
-It is possible to pass certain input arguments when calling _MUPPET_ via the command window, and avoid having to set them manually or use defaults. The supported arguments are:
-
+It is possible to pass certain input arguments when calling _Baleen_SNR_Tool_ via the command window, and avoid having to set them manually or use defaults. The supported arguments are:
   - **PAMLAB_DATA_FOLDER** - Path to a folder with PAMlab output. If not specified, the tool will prompt the user to select the path manually.
   - **WAV_FILE_FOLDER** - Path to the folder containing WAV files for the dataset of interest. If not specified, the tool will prompt the user to select the path manually.
-  - **OUTPUT_FOLDER_LOCATION** - Path where the tool's output folder will be created. If not specified, user will be prompted to select the path manually, or simply use the parent folder of the PAMlab output by cancelling the prompt.
-  - **PARAMFILE** - Path to a CSV file of project parameters, as an alternative to the default _SNR_PARAMS.csv_ file. The specified file must still have the same format as _SNR_PARAMS.csv_.
-  - **PLOT_TRACE_LINES** - true/false value that determines whether or not to save images of trace line plots for each annotation in the output folder. Default is false.
+  - **OUTPUT_FOLDER_LOCATION** - Path where the tool's output folder will be created (the output folder will be called _SNR_OPUTPUT_). If not specified, the tool will prompt the user to select the path manually, or simply use the parent folder of the PAMlab data if the user cancels the prompt.
+  - **PARAMFILE** - Path to a CSV file of SNR parameters, as an alternative to the default _SNR_PARAMS.csv_ file. The specified file must still have the same column format as _SNR_PARAMS.csv_.
 
 Input arguments are set by using MATLAB's Name-Value pair syntax. For example:
 ```matlab
-MUPPET('PAMLAB_DATA_FOLDER',data_dir, 'WAV_FILE_FOLDER',wav_dir)
+Baleen_SNR_Tool('PAMLAB_DATA_FOLDER',data_dir, 'WAV_FILE_FOLDER',wav_dir)
 ```
 where in this case, `data_dir` and `wav_dir` are char string variables specifying the paths to the PAMLAB data folder and WAV file folder, respectively (e.g., `data_dir = 'C:\Users\Me\SNR_Tool_analysis\PAMLAB'`).
 
 ### Output Arguments
-_MUPPET_ will always save its output as CSV files and, if requested, PNG files within a folder called _MUPPET_OUTPUT_INPUT_. However, it is also possible to pass the output into the MATLAB workspace by requesting it as output variables when running the tool. The syntax for this is:
+_Baleen_SNR_Tool_ will always save its output as CSV files within a folder called _SNR_OUTPUT_. However, it is also possible to pass the output into the MATLAB workspace by requesting it as an output variable when running the tool. The syntax for this is:
 ```matlab
-out = MUPPET
+out = Baleen_SNR_Tool
 ```
-
 where `out` is the variable that will contain the output (it does not have to be called _out_ necessarily; give it any name you want). The output variable comes in the form of a MATLAB struct containing tables of PAMLAB annotations with the SNR data appended. Each field of the struct corresponds to one PAMLAB CSV file that was processed.
 
-
-## Output Files
-As the tool processes each PAMLAB annotation CSV file it finds, it will, by default, create two CSV files for each of those files that contain the SNR information appended as new columns. Those files will be saved in the folder _MUPPET_OUTPUT_INPUT_, whose location is set by the user.
+## Output File
+As the tool processes each PAMLAB annotation CSV file it finds, it will create enhanced duplicates of those files that contain the SNR information appended as new columns. Those files will be saved in the folder _SNR_OUTPUT_, whose location is set by the user.
 
 The added SNR columns are:
   - **SNR_Direct** - The "raw", uncorrected SNR value in dB re. noise power (see "SNR Calculation")
   - **SNR_Corrected** - The SNR value (in dB re. noise power) corrected for noise within the signal window (see "SNR Calculation")
   - **SNRCalc_SignalDuration** - Duration of the signal window used in the SNR calculations, as determined based on a user-specified percentage of the total energy within the signal annotation box, in seconds.
   - **SNRCalc_NoiseDuration** - Actual duration of the noise clip that was used to calculate SNR. This will always be equal to or less than the ideal noise duration, depending on whether the noise window contained other signals that needed to be removed or not, or if there were not enough samples in the time series to generate the ideal noise clip. ***Be wary of noise durations that are extremely small (e.g., < 1 sec). In such cases, the noise power estimate may not be an accurate representation of the noise power coinciding with the signal, which in turn means that the SNR estimates may be inaccurate.***
-
-## Functions
-MUPPET employs a toolbox of custom functions to calculate the parameters of mysticete calls. 
-
-  - **isolateFilteredSNClip** - Isolate signal and associated noise samples from a larger audio time series vector, given a pre-determined signal location. Works by isolating a subsection of the audio vector and applyinging a bandpass filter to it before extracting signal and noise samples.
-  - **calcEng** - Calculate the 90% energy start and stop position of a input signal.
-  - **noDelayFilt** - Filter a signal using a digitalFilter object from the Signal Processing Toolbox, compensating for group delay introduced by the filter. This function only works if the delay is not frequency-dependent (usually the case with FIR filters). It will generally NOT work with IIR filters like the Butterworth filter.
-  - **calculateSNR** - Calculate signal-to-noise ratio, given pre-isolated windows of signal and noise.
-  - **computeSTFT** - Calculates the spectrogram of a given signal via the short-time Fourier transform (STFT). Also returns the Welch power spectral density (PSD) estimate, which is essentially just the average of STFT bins.
-  - **processSpec** - Processes a signal spectrogram in a particular order requested by the user. Processing operations are "Smooth", "Log", and "Denoise". Any combination of the above may be specified, and some may be omitted (but at least one should be specified).
-  - **smoothSpec** - Function for smoothing a spectrogram. Smoothing is done by convolving the spectrogram with a Gaussian kernel (based on Baumgartner and Mussoline). Note that special corrections must be applied to take away edge effects.
-  - **getTraceLine** -  Find an ideal trace line through a call in a spectrogram by using a "shortest path" searching algorithm (Dijkstra's algorithm) followed by energy-based clipping.
-  - **plotTraceLine** - Plots the trace line of a call against a spectrogram.
-  - **extractCallParams** - Calculate several time, frequency, and time-frequency parameters for baleen whale calls.
-
-
-## Parameter Calculation
-
-## Tracelines
 
 ## SNR Calculation
 The tool calculates signal-to-noise ratios in Decibels re. noise power, based on the following equations:
