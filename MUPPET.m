@@ -184,6 +184,7 @@ function varargout = MUPPET(varargin)
     for p = 1:numAnnotations %read in in Pamlab csv (Loop) Possibly redundant...
         file = fullfile(PAMLAB_ANNOTATIONS(p).folder,PAMLAB_ANNOTATIONS(p).name);
         PLA = readtable(file);
+        PLA.Call_ID = [1:height(PLA)]';
         PLA.SNR_Direct = NaN(height(PLA),1); %create location to save SNR
         PLA.SNR_Corrected = NaN(height(PLA),1); %create location to save SNR with noise power subtracted from numerator
         PLA.SNRCalc_SignalDuration = NaN(height(PLA),1); %create location to save the energy-based signal duration used to calculate SNR
@@ -488,6 +489,7 @@ function varargout = MUPPET(varargin)
             end
             
             %%% add call parameters to running table
+            call_params_w.CallID = w; %keep track of call ID
             call_params = [call_params; struct2table(call_params_w)];
             
         end %call loop
@@ -499,9 +501,11 @@ function varargout = MUPPET(varargin)
         % Create output files
         
         %%% SNR-expanded annotations output file
+        %remove additional noise annotations from SNR output
+        PLA_calls = PLA(~ismember(PLA.Species,'NN'),:);
         out1_filename = [outfile_refname, '_SNR.csv'];
         PATH2OUTPUT_SNR_FILE = fullfile(PATH2OUTPUT, out1_filename);
-        writetable(PLA, PATH2OUTPUT_SNR_FILE);
+        writetable(PLA_calls, PATH2OUTPUT_SNR_FILE);
         %%% OLD CODE
         %temp_name = split(PAMLAB_ANNOTATIONS(p).name,'.');
         %temp_filename = [char(temp_name(1)) '_SNR.csv'];
@@ -527,7 +531,7 @@ function varargout = MUPPET(varargin)
             for outvarnum = 1:nargout
                 switch outvarnum
                     case 1
-                        outvar = PLA;
+                        outvar = PLA_calls;
                     case 2
                         outvar = call_params;
                     case 3
