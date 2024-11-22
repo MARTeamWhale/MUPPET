@@ -4,7 +4,7 @@ function call_params = extractCallParams(sigPosRel, fs, f_stft, psd, perEng, tra
 % baleen whale calls.
 %
 % Written by Wilfried Beslin
-% Last Updated by Wilfried Beslin 2024-07-25
+% Last Updated by Wilfried Beslin 2024-11-22
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -55,9 +55,7 @@ function param = get_StartTime_Trace(sigPosRel, fs, f_stft, psd, perEng, trace_l
 % line, in seconds relative to the start of the annotation box
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Remember that the trace times are relative to the energy-based signal
-    % start time.
-    param = trace_line.RelTime(1) + current_params.StartTime_Waveform;
+    param = trace_line.RelTime(1);
 end
 
 
@@ -67,19 +65,17 @@ function param = get_EndTime_Waveform(sigPosRel, fs, f_stft, psd, perEng, trace_
 % start of the annotation box
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    param = (sigPosRel(2) - 1)./fs;
+    param = sigPosRel(2)./fs;
 end
 
 
-% get_StartTime_Trace -----------------------------------------------------
+% get_EndTime_Trace -----------------------------------------------------
 function param = get_EndTime_Trace(sigPosRel, fs, f_stft, psd, perEng, trace_line, current_params)
 % Returns the signal end time based on the ending time of the trace
 % line, in seconds relative to the start of the annotation box
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Remember that the trace times are relative to the energy-based signal
-    % start time.
-    param = trace_line.RelTime(end) + current_params.StartTime_Waveform;
+    param = trace_line.RelTime(end);
 end
 
 
@@ -191,7 +187,7 @@ function param = get_TraceMinFreqTime(sigPosRel, fs, f_stft, psd, perEng, trace_
     % get the mean time of the longest sequence, if there is only one
     if i_longest_seq == 1
         i_mean_min = mean([min_seq_starts(i_longest_seq),min_seq_stops(i_longest_seq)]);
-        param = interp1((1:numel(trace_line.RelTime))', trace_line.RelTime, i_mean_min) + current_params.StartTime_Waveform;
+        param = interp1((1:numel(trace_line.RelTime))', trace_line.RelTime, i_mean_min);
     else
         param = NaN;
     end
@@ -226,7 +222,7 @@ function param = get_TraceMaxFreqTime(sigPosRel, fs, f_stft, psd, perEng, trace_
     % get the mean time of the longest sequence, if there is only one
     if i_longest_seq == 1
         i_mean_max = mean([max_seq_starts(i_longest_seq),max_seq_stops(i_longest_seq)]);
-        param = interp1((1:numel(trace_line.RelTime))', trace_line.RelTime, i_mean_max) + current_params.StartTime_Waveform;
+        param = interp1((1:numel(trace_line.RelTime))', trace_line.RelTime, i_mean_max);
     else
         param = NaN;
     end

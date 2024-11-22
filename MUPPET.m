@@ -52,7 +52,7 @@ function varargout = MUPPET(varargin)
 %
 % Written by Mike Adams and Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-11-20
+% 2024-11-22
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -338,7 +338,6 @@ function varargout = MUPPET(varargin)
                 
                 %%% get spectrogram and full PSD estimate of signal
                 %%% (truncated to passband frequencies)
-                %[t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, Fs, sigPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                 [t_stft, f_stft, psdm, psd] = MUPPET.computeSTFT(xClip, FsResampled, annotPos, stftWinSize, stftOverlap, 'NFFT',stftN, 'FRange',[LowerStopbandFreq,UpperStopbandFreq]);
                 
                 %%% do the same for noise
@@ -480,7 +479,7 @@ function varargout = MUPPET(varargin)
                 end
                 
                 %%% extract call parameters and store to table
-                sigPosRel = sigPos - annotPos(1); % energy-based signal position relative to start of annotation
+                sigPosRel = sigPos - annotPos(1) + 1; % energy-based signal position relative to start of annotation
                 call_params_w = MUPPET.extractCallParams(sigPosRel, FsResampled, f_stft, psd, EnergyPercent, trace_line_w);
             else
                 % cannot calculate parameters for unsuitable calls, so just
