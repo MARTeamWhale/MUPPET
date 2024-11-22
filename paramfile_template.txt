@@ -1,0 +1,55 @@
+###########################################################################
+#
+# TEST PARAMETER FILE for MUPPET
+#
+###########################################################################
+
+
+# BANDPASS FILTER PARAMETERS
+#---------------------------
+    Lower_Passband_Frequency = 22	# Lower bound of the bandpass filter before which frequencies become attenuated (Hz)
+    Upper_Passband_Frequency = 118	# Upper bound of the bandpass filter after which frequencies become attenuated (Hz)
+    Stopband_Rolloff_Bandwidth = 10	# Amount of frequency bandwidth that it takes for the passband frequencies to be attenuated to a level of -60 dB (Hz)
+
+
+# SIGNAL AND NOISE ISOLATION
+#---------------------------
+    Noise_Distance = 1.0		# Amount of separation between the end of the noise window to be taken and the beginning of the signal (s)
+    Ideal_Noise_Duration = 10.0		# Duration that the noise estimate window should ideally have. May be specified as a fixed time (s) or as the string 'equal' (without quotes) to match signal durations.
+    Signal_Energy_Percent = 90		# Percentage of energy within a signal window that determines the start and stop times of a signal based on cumulative energy
+
+
+# STFT (SPECTROGRAM) PARAMETERS
+-------------------------------
+    STFT_Win_Size = 1.0		# Spectrogram window size, in seconds
+    STFT_Step_Size = 0.01	# Spectrogram time step size, in seconds
+    NFFT_8kHz = 8000		# Number of points to use in FFT if recording were sampled at 8 kHz (the actual number will be adjusted for the correct sampling rate)
+    Smooth_Spec = true		# Determines if a smoothing kernel should be applied to spectrograms or not (smoothing can help with trace line calculation)
+
+
+# RESAMPLING
+#-----------
+    Downsampled_Sampling_Rate = 8000	# Sampling rate at which all data should be downsampled (Hz)
+
+
+# TRACE LINE CALCULATION
+#-----------------------
+    Trace_Penalty_Coefficients = [0.01, 3.0]	# Values of coefficients to use in the penalty function used to draw trace lines. WIP, DOCUMENTATION TBD
+    Trace_Energy_Percent = 90			# Percentage of energy within a trace line spanning the entire annotation window that determines initial start and stop times of a trace based on cumulative energy
+    Trace_Threshold_Type = xNoiseSD		# Type of threshold to use to refine trace line limits. Supported values are 'fixed', 'percentile', and 'xNoiseSD'. DOCUMENTATION TBD
+    Trace_Threshold_Val = 3.0			# Value used to determine the SNR threshold according to the threshold type. DOCUMENTATION TBD
+
+
+# TRACE LINE PLOT PARAMETERS
+#---------------------------
+    Spec_Plot_Colour_Map = parula	# Name of MATLAB colourmap to use for spectrogram plots
+    Log_Spec_Plot_Colours = false	# Determines if the spectrogram colour scale should be in 'linear' or 'log' scale. Note that actual power values are in dB, so they already follow a log scale.
+    Trace_Plot_Line_Colour = m		# Colour of trace lines on plot
+    Trace_Plot_Line_Width = 0.5		# Thickness of trace lines on plot
+    Trace_Plot_Marker_Type = o		# Determines the symbol that will denote individual points along the trace line
+    Trace_Plot_Marker_Size = 4		# Size of trace point markers
+
+
+# ADVANCED PARAMETERS
+#--------------------
+    Cap_Noise = true	# Setting this to true will apply a ceiling on noise energy estimates when determining SNR, such that they cannot be higher than the energy of their corresponding signals
