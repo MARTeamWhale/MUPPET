@@ -579,6 +579,11 @@ function varargout = MUPPET(varargin)
         out3_filename = [outfile_refname, '_TraceLines.csv'];
         PATH2OUTPUT_TRACE_FILE = fullfile(PATH2OUTPUT, out3_filename);
         writetable(trace_lines, PATH2OUTPUT_TRACE_FILE);
+
+        %%% paramfile
+        [~,paramfile_name,paramfile_ext] = fileparts(PARAMFILE);
+        PATH2OUTPUT_PARAMFILE = fullfile(PATH2OUTPUT, [paramfile_name,'.',paramfile_ext]);
+        copyfile(PARAMFILE, PATH2OUTPUT_PARAMFILE);
         
         % save tables to output variables if needed
         if nargout > 0
