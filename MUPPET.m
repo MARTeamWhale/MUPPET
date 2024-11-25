@@ -128,13 +128,14 @@ function varargout = MUPPET(varargin)
     end
 
     % read parameter file
-    %%% Look for default file if one was not specified in the command line
+    %%% prompt user for file if one was not specified in the command line
     if isempty(PARAMFILE)
-        toolScriptPath = mfilename('fullpath');
-        [tooldir, ~, ~] = fileparts(toolScriptPath);
+        [paramfile_name, paramfile_dir] = uigetfile('*.txt', 'SELECT PARAMETER FILE');
+        PARAMFILE = fullfile(paramfile_dir, paramfile_name);
+        %toolScriptPath = mfilename('fullpath');
+        %[tooldir, ~, ~] = fileparts(toolScriptPath);
         %PARAMFILE = fullfile(tooldir, 'SNR_PARAMS.csv');
-        PARAMFILE = fullfile(tooldir, 'paramfile_template.txt');
-        disp('Using default parameter file')
+        %disp('Using default parameter file')
     end
     PARAMS = MUPPET.importInputParams(PARAMFILE);
     
