@@ -5,7 +5,7 @@ function PARAMS = importInputParams(paramFilePath)
 %
 % Written by Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-11-22
+% 2024-11-25
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -24,14 +24,14 @@ function PARAMS = importInputParams(paramFilePath)
 
     %%% Signal and noise isolation
     PARAMS.Noise_Distance = readParam(paramFileText, 'Noise_Distance', {@(var)validateattributes(var,{'numeric'},{'scalar','nonnegative'})});
-    PARAMS.Ideal_Noise_Duration  = readParam(paramFileText, 'Ideal_Noise_Duration', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})}); 
-    PARAMS.Signal_Energy_Percent  = readParam(paramFileText, 'Signal_Energy_Percent', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','<=',100})});
+    PARAMS.Ideal_Noise_Duration = readParam(paramFileText, 'Ideal_Noise_Duration', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})});
+    PARAMS.Signal_Energy_Percent = readParam(paramFileText, 'Signal_Energy_Percent', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','<=',100})});
 
     %%% STFT parameters
-    PARAMS.STFT_Win_Size  = readParam(paramFileText, 'STFT_Win_Size', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})});
-    PARAMS.STFT_Step_Size  = readParam(paramFileText, 'STFT_Step_Size', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})});
-    PARAMS.NFFT_8kHz  = readParam(paramFileText, 'NFFT_8kHz', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','integer'})});
-    PARAMS.Smooth_Spec  = readParam(paramFileText, 'Smooth_Spec', {@(var)validateattributes(var,{'logical'},{'scalar'})});
+    PARAMS.STFT_Win_Size = readParam(paramFileText, 'STFT_Win_Size', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','integer'})});
+    PARAMS.STFT_Step_Size = readParam(paramFileText, 'STFT_Step_Size', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','integer'})});
+    PARAMS.NFFT = readParam(paramFileText, 'NFFT', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','integer'})});
+    PARAMS.Smooth_Spec = readParam(paramFileText, 'Smooth_Spec', {@(var)validateattributes(var,{'logical'},{'scalar'})});
 
     %%% Resampling
     PARAMS.Downsampled_Sampling_Rate = readParam(paramFileText, 'Downsampled_Sampling_Rate', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','integer'})});
@@ -45,10 +45,10 @@ function PARAMS = importInputParams(paramFilePath)
     %%% Trace line plot parameters
     PARAMS.Spec_Plot_Colour_Map = readParam(paramFileText, 'Spec_Plot_Colour_Map', {@(var)validateattributes(var,{'char'},{'vector'})});
     PARAMS.Log_Spec_Plot_Colours = readParam(paramFileText, 'Log_Spec_Plot_Colours', {@(var)validateattributes(var,{'logical'},{'scalar'})});
-    PARAMS.Trace_Plot_Line_Colour  = readParam(paramFileText, 'Trace_Plot_Line_Colour', {@(var)validateattributes(var,{'char'},{'scalar'}),@(var)validateattributes(var,{'numeric'},{'numel',3,'nonnegative','<=',1})});
-    PARAMS.Trace_Plot_Line_Width  = readParam(paramFileText, 'Trace_Plot_Line_Width', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})});
-    PARAMS.Trace_Plot_Marker_Type  = readParam(paramFileText, 'Trace_Plot_Marker_Type', {@(var)validateattributes(var,{'char'},{'scalar'})});
-    PARAMS.Trace_Plot_Marker_Size  = readParam(paramFileText, 'Trace_Plot_Marker_Size', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})});
+    PARAMS.Trace_Plot_Line_Colour = readParam(paramFileText, 'Trace_Plot_Line_Colour', {@(var)validateattributes(var,{'char'},{'scalar'}),@(var)validateattributes(var,{'numeric'},{'numel',3,'nonnegative','<=',1})});
+    PARAMS.Trace_Plot_Line_Width = readParam(paramFileText, 'Trace_Plot_Line_Width', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})});
+    PARAMS.Trace_Plot_Marker_Type = readParam(paramFileText, 'Trace_Plot_Marker_Type', {@(var)validateattributes(var,{'char'},{'scalar'})});
+    PARAMS.Trace_Plot_Marker_Size = readParam(paramFileText, 'Trace_Plot_Marker_Size', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})});
 
     %%% Advanced parameters
     PARAMS.Cap_Noise = readParam(paramFileText, 'Cap_Noise', {@(var)validateattributes(var,{'logical'},{'scalar'})});

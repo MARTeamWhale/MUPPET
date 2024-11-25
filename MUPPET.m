@@ -23,9 +23,7 @@ function varargout = MUPPET(varargin)
 %       manually, or simply use the parent folder of the PAMlab output by
 %       cancelling the prompt.
 %   .......................................................................
-%   "PARAMFILE" - Path to CSV file of SNR parameters. If not specified, the
-%       tool will try to load the default parameters from the file
-%       SNR_PARAMS.csv.
+%   "PARAMFILE" - Path to text file of parameters
 %   .......................................................................
 %   "PLOT_TRACE_LINES" - true/false value that determines whether or not to
 %       save images of trace line plots for each annotation in the output
@@ -52,7 +50,7 @@ function varargout = MUPPET(varargin)
 %
 % Written by Mike Adams and Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-11-22
+% 2024-11-25
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -134,10 +132,14 @@ function varargout = MUPPET(varargin)
     if isempty(PARAMFILE)
         toolScriptPath = mfilename('fullpath');
         [tooldir, ~, ~] = fileparts(toolScriptPath);
-        PARAMFILE = fullfile(tooldir, 'SNR_PARAMS.csv');
+        %PARAMFILE = fullfile(tooldir, 'SNR_PARAMS.csv');
+        PARAMFILE = fullfile(tooldir, 'paramfile_template.txt');
         disp('Using default parameter file')
     end
+    PARAMS = MUPPET.importInputParams(PARAMFILE);
     
+    %%% OLD CSV PARAMFILE PARSING
+    %{
     SNR_PARAMS = readtable(PARAMFILE);
     paramnames = {'Species', 'Call_Type', 'Lower_Passband_Frequency', 'Upper_Passband_Frequency', 'Stopband_Rolloff_Bandwidth', 'Noise_Distance', 'Ideal_Noise_Duration', 'Signal_Energy_Percent'};
     assert(all(ismember(SNR_PARAMS.Properties.VariableNames, paramnames)), 'Parameter file does not include all expected parameters')
@@ -158,29 +160,58 @@ function varargout = MUPPET(varargin)
                       'ListString',calltypelist);
     calltype = calltypelist(ct_idx,1);
     SNR_PARAMS_filtered = SNR_PARAMS(strcmp(SNR_PARAMS.Species,string(species{1,1})) & strcmp(SNR_PARAMS.Call_Type,string(calltype{1,1})),:);
+    %}
 
-    %%% extract or derive variables from PARAMS table
-    LowerStopbandFreq = SNR_PARAMS_filtered.Lower_Passband_Frequency - SNR_PARAMS_filtered.Stopband_Rolloff_Bandwidth;
-    LowerPassbandFreq = SNR_PARAMS_filtered.Lower_Passband_Frequency;
-    UpperPassbandFreq = SNR_PARAMS_filtered.Upper_Passband_Frequency;
-    UpperStopbandFreq = SNR_PARAMS_filtered.Upper_Passband_Frequency + SNR_PARAMS_filtered.Stopband_Rolloff_Bandwidth;
-    NoiseDistance = SNR_PARAMS_filtered.Noise_Distance; 
-    NoiseSize = SNR_PARAMS_filtered.Ideal_Noise_Duration;
-    EnergyPercent = SNR_PARAMS_filtered.Signal_Energy_Percent;
+    % extract or derive parameters from the imported PARAMS struct, to
+    % avoid having to access the struct multiple times
+    %%% Bandpass filter settings
+    LowerStopbandFreq = PARAMS.Lower_Passband_Frequency - PARAMS.Stopband_Rolloff_Bandwidth;
+    LowerPassbandFreq = PARAMS.Lower_Passband_Frequency;
+    UpperPassbandFreq = PARAMS.Upper_Passband_Frequency;
+    UpperStopbandFreq = PARAMS.Upper_Passband_Frequency + PARAMS.Stopband_Rolloff_Bandwidth;
+    %%% Signal and noise isolation
+    NoiseDistance = PARAMS.Noise_Distance;
+    NoiseSize = PARAMS.Ideal_Noise_Duration;
+    EnergyPercent = PARAMS.Signal_Energy_Percent;
+    %%% Resampling
+    FsResampled = PARAMS.Downsampled_Sampling_Rate;
+    %%% STFT parameters
+    stftWinSize = PARAMS.STFT_Win_Size;
+    stftOverlap = stftWinSize - PARAMS.STFT_Step_Size;
+    stftN = PARAMS.NFFT;
+    smoothSpec = PARAMS.Smooth_Spec;
+    %%% Trace line calculation
+    trace_penalty_coeff = PARAMS.Trace_Penalty_Coefficients(1);
+    trace_penalty_exp = PARAMS.Trace_Penalty_Coefficients(2);
+    trace_energy_percent = PARAMS.Trace_Energy_Percent;
+    trace_th_type = validatestring(lower(PARAMS.Trace_Threshold_Type), {'fixed','percentile','xnoisesd'});
+    trace_th_val = PARAMS.Trace_Threshold_Val;
+    %%% Trace line plot parameters
+    colmap = lower(PARAMS.Spec_Plot_Colour_Map);
+    log_specplot_cols = PARAMS.Log_Spec_Plot_Colours;
+    trace_plot_data = struct(...
+        'Color', {PARAMS.Trace_Plot_Line_Colour},...
+        'Marker', {PARAMS.Trace_Plot_Marker_Type},...
+        'MarkerSize', {PARAMS.Trace_Plot_Marker_Size},...
+        'LineWidth', {PARAMS.Trace_Plot_Line_Width}...
+        );
+    %%% Advanced
+    cap_noise = PARAMS.Cap_Noise;
 
-    %%% create empty variable to store bandpass filter object
+    % create empty variable to store bandpass filter object
     bandpass_filter = [];
     
-    %%% initialize output variables if output was requested
+    % initialize output variables if output was requested
     varargout = cell(1,nargout);
     for outvarnum = 1:nargout
         varargout{outvarnum} = struct();
     end
     
-    %%% set trace line table variable names
+    % set trace line table variable names
     trace_table_vars = {'RelTime','Freq','Power_dB','Call_ID'};
 
-    %%% process each artefact file
+    % process each artefact file
+    %** Still need to apply error-checking for unsupported CSV files
     for p = 1:numAnnotations %read in in Pamlab csv (Loop) Possibly redundant...
         file = fullfile(PAMLAB_ANNOTATIONS(p).folder,PAMLAB_ANNOTATIONS(p).name);
         PLA = readtable(file);
@@ -265,6 +296,7 @@ function varargout = MUPPET(varargin)
                 
                 %%% define spectrogram and downsampling parameters 
                 %%% (TEMPORARILY HARDCODED)
+                %{
                 FsResampled = 8000;
                 spectype = 'custom'; % CHANGE AS NEEDED
                 switch spectype
@@ -288,6 +320,7 @@ function varargout = MUPPET(varargin)
                         stftOverlap = stftWinSize - round(0.1*FsResampled);
                         stftN = stftWinSize;
                 end
+                %}
             end
 
             %%% Get Start of annotation and End of annotation
@@ -331,8 +364,7 @@ function varargout = MUPPET(varargin)
                 end
                 %xAnnot = xClip(annotPos(1):annotPos(2));
                 
-                %[PLA.SNR(w), PLA.SNR_Adjusted(w)] = MUPPET.calculateSNR(xSignal, xNoise);
-                [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = MUPPET.calculateSNR(xSignal, xNoise, 'CapNoise',true);
+                [PLA.SNR_Direct(w), PLA.SNR_Corrected(w)] = MUPPET.calculateSNR(xSignal, xNoise, 'CapNoise',cap_noise);
                 PLA.SNRCalc_SignalDuration(w) = numel(xSignal)/FsResampled;
                 PLA.SNRCalc_NoiseDuration(w) = numel(xNoise)/FsResampled;
                 
@@ -363,7 +395,11 @@ function varargout = MUPPET(varargin)
                 end
                 
                 %%% set spectrogram processing order 
-                spec_ops = {'log','smooth','denoise1'}; % this is the order used in LFDCS
+                if smoothSpec
+                    spec_ops = {'log','smooth','denoise1'}; % this is the order used in LFDCS
+                else
+                    spec_ops = {'log','denoise1'};
+                end
                 
                 %%% process signal and noise spectrograms
                 [psdm_anal, psdm_noise_anal] = MUPPET.processSpec(psdm, psdmc_noise, spec_ops);
@@ -378,24 +414,32 @@ function varargout = MUPPET(varargin)
                 f_stft_annwin = f_stft(is_f_in_annot_range);
                 
                 %%% export raw (unprocessed) spectrograms, if requested
+                %** This is only meant to be used for debugging
                 if export_specs
                     PATH2OUTPUT_SPEC_FILE = fullfile(PATH2OUTPUT_SPECS, [outfile_refname,'_spectrogram_',num2str(w),'.mat']);
                     save(PATH2OUTPUT_SPEC_FILE, 'f_stft', 't_stft', 'psdm', 'psdmc_noise', 'is_f_in_annot_range');
                 end
                 
                 % set noise threshold for pitch tracing
-                %spec_snr_th = 10;
-                %spec_snr_th = max([10, prctile(psdm_anal_annwin(:), 95)]);
-                spec_snr_th = 3*std(psdm_noise_anal_demeaned(:)); % 3 standard deviations above the noise spectrogram
-                
-                %%% set other pitch tracing parameters
-                %%% (hard-coded for now)
-                trace_penalty_coeff = 0.01; %0.008;
-                trace_penalty_exp = 3; %2;
+                switch trace_th_type
+                    case 'fixed'
+                        %%% set threshold according to a fixed dB value
+                        spec_snr_th = trace_th_val;
+                    case 'percentile'
+                        %%% set threshold based on a certain percentile
+                        %%% of all values in the signal spectrogram
+                        spec_snr_th = prctile(psdm_anal_annwin(:), trace_th_val);
+                    case 'xnoisesd'
+                        %%% set threshold based on a certain number of
+                        %%% standard deviations above the noise spectrogram
+                        spec_snr_th = trace_th_val*std(psdm_noise_anal_demeaned(:));
+                    otherwise
+                        error(sprintf('Unrecognized trace threshold type "%s"', trace_th_type))
+                end
                 
                 %%% find the best trace line
                 try
-                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyThreshold',spec_snr_th, 'EnergyPercent',EnergyPercent);
+                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyThreshold',spec_snr_th, 'EnergyPercent',trace_energy_percent);
                     
                     %** INCLUDE ALTERNATE TESTS HERE  
                     %[t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
@@ -408,19 +452,27 @@ function varargout = MUPPET(varargin)
                     
                     
                     %%% compile all trace line tests
+                    %%% (data will only be extracted from the first)
                     t_trace_all = {t_trace};
                     f_trace_all = {f_trace};
                     
-                    trace_plot_data = struct(...
-                        'Color', {'m'},...
-                        'Marker', {'o'},...
-                        'MarkerSize', {4},...
-                        'LineWidth', {0.5},...
-                        'DisplayName', {'Default'}...
-                        );
+                    %%% override plot data if there are multiple trace
+                    %%% lines
+                    if numel(t_trace_all) > 1
+                        %%% CHANGE AS NEEDED
+                        trace_plot_data = struct(...
+                            'Color', {'m'},...
+                            'Marker', {'o'},...
+                            'MarkerSize', {4},...
+                            'LineWidth', {0.5},...
+                            'DisplayName', {'Default'}...
+                            );
+                    end
                     
                     %%% get the original (logged but unsmoothed) power
                     %%% values of the trace line
+                    %** Will change this eventually to use the transformed
+                    %** spectrogram instead
                     psdm_tracedata = 10.*log10(psdm(is_f_in_annot_range,:));
                     [~, i_f_trace] = ismember(f_trace, f_stft_annwin);
                     [~, i_t_trace] = ismember(t_trace, t_stft);
@@ -438,20 +490,19 @@ function varargout = MUPPET(varargin)
                 
                 %%% plot trace line if specified
                 if plot_trace && ~isempty(trace_line_w)
-                    do_log_cols = false; % CHANGE AS NEEDED
-                    if do_log_cols
+                    if log_specplot_cols
                         % process LOG colour scale
                         plot_zshift = spec_snr_th*1.5 + 1;
                         psdm_plot = psdm_anal - plot_zshift;
                     
                         caxis_val = spec_snr_th.*[-3,1.5] - plot_zshift;
-                        do_log_cols = true;
+                        log_specplot_cols = true;
                     else
                         % process LINEAR colour scale
                         psdm_plot = psdm_anal;
                     
                         caxis_val = spec_snr_th.*[-2,2];
-                        do_log_cols = false;
+                        log_specplot_cols = false;
                     end
                     
                     fig = gcf();
@@ -459,12 +510,19 @@ function varargout = MUPPET(varargin)
                     clf(fig);
                     ax = axes();
 
-                    MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_plot, t_trace_all, f_trace_all, [f_min_ann,f_max_ann], 'LineData',trace_plot_data, 'CAxis',caxis_val, 'LogCols',do_log_cols);
+                    MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_plot, t_trace_all, f_trace_all, [f_min_ann,f_max_ann], 'LineData',trace_plot_data, 'CAxis',caxis_val, 'LogCols',log_specplot_cols);
                     ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
                     xlim(t_stft([1,end]))
+                    try
+                        colormap(ax, colmap);
+                    catch ME
+                        warning(sprintf('Invalid colourmap "%s"; will use "parula" instead',colmap))
+                        colormap(ax, 'parula');
+                    end
 
                     %title(sprintf('%s - No. %d\n\\rmCost = %g\\it\\Deltaf\\rm^{%g} + 1;   Th=%.2fdB,  MaxTGap=%.2fs,  MaxFGap=%gHz', strrep(outfile_refname,'_','\_'), w, trace_penalty_coeff, trace_penalty_exp, th_psdm, trace_max_t_gap, trace_max_f_gap))
                     title(sprintf('%s - No. %d', strrep(outfile_refname,'_','\_'), w))
+                    %** Need to improve the plot title (and filename maybe?)
 
                     % save the plot
                     PATH2OUTPUT_TRACEPLOT_FILE = fullfile(PATH2OUTPUT_TRACEPLOTS, ['Trace_',num2str(w),'.png']);

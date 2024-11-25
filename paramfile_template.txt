@@ -19,17 +19,17 @@
     Signal_Energy_Percent = 90		# Percentage of energy within a signal window that determines the start and stop times of a signal based on cumulative energy
 
 
-# STFT (SPECTROGRAM) PARAMETERS
--------------------------------
-    STFT_Win_Size = 1.0		# Spectrogram window size, in seconds
-    STFT_Step_Size = 0.01	# Spectrogram time step size, in seconds
-    NFFT_8kHz = 8000		# Number of points to use in FFT if recording were sampled at 8 kHz (the actual number will be adjusted for the correct sampling rate)
-    Smooth_Spec = true		# Determines if a smoothing kernel should be applied to spectrograms or not (smoothing can help with trace line calculation)
-
-
 # RESAMPLING
 #-----------
     Downsampled_Sampling_Rate = 8000	# Sampling rate at which all data should be downsampled (Hz)
+
+
+# STFT (SPECTROGRAM) PARAMETERS
+-------------------------------
+    STFT_Win_Size = 8192	# Number of samples to extract from the time series for each STFT bin. Bigger values increase the true frequency resolution, but at the cost of true time resolution. To get this number in seconds, divide it by the downsampled sampling rate.
+    STFT_Step_Size = 819	# Number of samples to skip forward when processing successive STFT bins. Smaller values increase the number of points that will appear along the time axis of a spectrogram, but result in more bins to process. To get this number in seconds, divide it by the downsampled sampling rate.
+    NFFT = 8192			# Number of points to use in FFT calculations during STFT. This works best as a power of 2 and must be >= STFT_Win_Size. If larger than STFT_Win_Size, then zeros will be added to complete the STFT window (adding zeros makes the frequency axis look smoother but does not truly increase the resolution of frequency content within the data).
+    Smooth_Spec = true		# Determines if the spectrogram should be smoothed or not (smoothing can help with trace line calculation). Smoothing is performed using a 2D Gaussian kernel function.
 
 
 # TRACE LINE CALCULATION
