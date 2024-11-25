@@ -1,6 +1,11 @@
 ###########################################################################
 #
-# TEST PARAMETER FILE for MUPPET
+# TEMPLATE PARAMETER FILE FOR MUPPET
+# Last updated 2024-11-25
+#
+# Use this file as a base to create parameter lists for specific analyses.
+#
+# MUPPET will not automatically read this file.
 #
 ###########################################################################
 

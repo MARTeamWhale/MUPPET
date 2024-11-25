@@ -23,7 +23,8 @@ function varargout = MUPPET(varargin)
 %       manually, or simply use the parent folder of the PAMlab output by
 %       cancelling the prompt.
 %   .......................................................................
-%   "PARAMFILE" - Path to text file of parameters
+%   "PARAMFILE" - Path to text file of parameters. If not specified, user
+%       will be prompted to select a file manually.
 %   .......................................................................
 %   "PLOT_TRACE_LINES" - true/false value that determines whether or not to
 %       save images of trace line plots for each annotation in the output
