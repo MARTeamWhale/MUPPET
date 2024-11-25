@@ -210,7 +210,7 @@ function varargout = MUPPET(varargin)
     end
     
     % set trace line table variable names
-    trace_table_vars = {'RelTime','Freq','Power_dB','Call_ID'};
+    trace_table_vars = {'RelTime','Freq','RelPow_dB','Call_ID'};
 
     % process each artefact file
     %** Still need to apply error-checking for unsupported CSV files
@@ -471,14 +471,12 @@ function varargout = MUPPET(varargin)
                             );
                     end
                     
-                    %%% get the original (logged but unsmoothed) power
-                    %%% values of the trace line
-                    %** Will change this eventually to use the transformed
-                    %** spectrogram instead
-                    psdm_tracedata = 10.*log10(psdm(is_f_in_annot_range,:));
+                    %%% get relative power values of the trace line
+                    %%% (using the processed spectrogram)
+                    %psdm_tracedata = 10.*log10(psdm(is_f_in_annot_range,:));
                     [~, i_f_trace] = ismember(f_trace, f_stft_annwin);
                     [~, i_t_trace] = ismember(t_trace, t_stft);
-                    logp_trace = psdm_tracedata(sub2ind(size(psdm_tracedata), i_f_trace, i_t_trace'));
+                    logp_trace = psdm_anal_annwin(sub2ind(size(psdm_anal_annwin), i_f_trace, i_t_trace'));
                     
                     %%% store trace data in table
                     trace_line_w = table(t_trace', f_trace,  logp_trace, repelem(w,numel(t_trace),1), 'VariableNames',trace_table_vars);
