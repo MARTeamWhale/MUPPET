@@ -13,7 +13,7 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % 
 %
 % Written by Wilfried Beslin
-% Last updated 2024-09-24
+% Last updated 2024-11-27
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -95,8 +95,8 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     % refine the start and end points of the final trace based on which
     % points cross the threshold
     logp_trace_percent = logpsdm(sub2ind([nf,nt], j_trace_full,i_trace_full));
-    logp_trace_percent(1:(i_trace_start_percent-1)) = -Inf;
-    logp_trace_percent((i_trace_stop_percent+1):end) = -Inf;
+    logp_trace_percent(1:(i_trace_start_percent-1)) = NaN;
+    logp_trace_percent((i_trace_stop_percent+1):end) = NaN;
     
     i_trace_start = find(logp_trace_percent >= eng_th, 1, 'first');
     i_trace_stop = find(logp_trace_percent >= eng_th, 1, 'last');
