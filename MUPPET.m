@@ -51,7 +51,7 @@ function varargout = MUPPET(varargin)
 %
 % Written by Mike Adams and Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-11-25
+% 2024-11-28
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -422,26 +422,26 @@ function varargout = MUPPET(varargin)
                     save(PATH2OUTPUT_SPEC_FILE, 'f_stft', 't_stft', 'psdm', 'psdmc_noise', 'is_f_in_annot_range');
                 end
                 
-                % set noise threshold for pitch tracing
+                % set power-over-noise threshold for pitch tracing
                 switch trace_th_type
                     case 'fixed'
                         %%% set threshold according to a fixed dB value
-                        spec_snr_th = trace_th_val;
+                        trace_power_th = trace_th_val;
                     case 'percentile'
                         %%% set threshold based on a certain percentile
                         %%% of all values in the signal spectrogram
-                        spec_snr_th = prctile(psdm_anal_annwin(:), trace_th_val);
+                        trace_power_th = prctile(psdm_anal_annwin(:), trace_th_val);
                     case 'xnoisesd'
                         %%% set threshold based on a certain number of
                         %%% standard deviations above the noise spectrogram
-                        spec_snr_th = trace_th_val*std(psdm_noise_anal_demeaned(:));
+                        trace_power_th = trace_th_val*std(psdm_noise_anal_demeaned(:));
                     otherwise
                         error(sprintf('Unrecognized trace threshold type "%s"', trace_th_type))
                 end
                 
                 %%% find the best trace line
                 try
-                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyThreshold',spec_snr_th, 'EnergyPercent',trace_energy_percent);
+                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'PowerThreshold',trace_power_th, 'EnergyPercent',trace_energy_percent);
                     
                     %** INCLUDE ALTERNATE TESTS HERE  
                     %[t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
@@ -492,16 +492,16 @@ function varargout = MUPPET(varargin)
                 if plot_trace && ~isempty(trace_line_w)
                     if log_specplot_cols
                         % process LOG colour scale
-                        plot_zshift = spec_snr_th*1.5 + 1;
+                        plot_zshift = trace_power_th*1.5 + 1;
                         psdm_plot = psdm_anal - plot_zshift;
                     
-                        caxis_val = spec_snr_th.*[-3,1.5] - plot_zshift;
+                        caxis_val = trace_power_th.*[-3,1.5] - plot_zshift;
                         log_specplot_cols = true;
                     else
                         % process LINEAR colour scale
                         psdm_plot = psdm_anal;
                     
-                        caxis_val = spec_snr_th.*[-2,2];
+                        caxis_val = trace_power_th.*[-2,2];
                         log_specplot_cols = false;
                     end
                     

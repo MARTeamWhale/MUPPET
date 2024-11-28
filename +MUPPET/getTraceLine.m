@@ -13,7 +13,7 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % 
 %
 % Written by Wilfried Beslin
-% Last updated 2024-11-27
+% Last updated 2024-11-28
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -37,14 +37,14 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     p = inputParser;
     p.addParameter('PenaltyCoefficient', 0.01, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('PenaltyExponent', 3, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
-    p.addParameter('EnergyThreshold', -Inf, @(val)validateattributes(val,{'numeric'},{'scalar'}));
+    p.addParameter('PowerThreshold', -Inf, @(val)validateattributes(val,{'numeric'},{'scalar'}));
     p.addParameter('EnergyPercent', 90, @(val)validateattributes(val,{'numeric'},{'scalar','positive','<=',100}));
     p.addParameter('NumAveragingPaths', 1, @(val)validateattributes(val,{'numeric'},{'scalar','positive'}));
 
     p.parse(varargin{:})
     penalty_coeff = p.Results.PenaltyCoefficient;
     penalty_exp = p.Results.PenaltyExponent;
-    eng_th = p.Results.EnergyThreshold;
+    pow_th = p.Results.PowerThreshold;
     eng_perc = p.Results.EnergyPercent;
     num_ave = p.Results.NumAveragingPaths;
     
@@ -98,8 +98,8 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     logp_trace_percent(1:(i_trace_start_percent-1)) = NaN;
     logp_trace_percent((i_trace_stop_percent+1):end) = NaN;
     
-    i_trace_start = find(logp_trace_percent >= eng_th, 1, 'first');
-    i_trace_stop = find(logp_trace_percent >= eng_th, 1, 'last');
+    i_trace_start = find(logp_trace_percent >= pow_th, 1, 'first');
+    i_trace_stop = find(logp_trace_percent >= pow_th, 1, 'last');
     
     % get time and frequency values of the trace line
     t_trace = t_trace_full(i_trace_start:i_trace_stop);
