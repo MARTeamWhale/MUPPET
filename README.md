@@ -39,7 +39,8 @@ For each run, MUPPET will require a plain-text (.txt) file of settings that dete
      - ***NFFT*** - Number of points to use in FFT calculations during STFT. ***This works best as a power of 2*** and must be >= *STFT_Win_Size*. If larger than *STFT_Win_Size*, then zeros will be added to complete the STFT window (adding zeros makes the frequency axis look smoother but does not truly increase the resolution of frequency content within the data).
      - ***Smooth_Spec*** - True/False value that determines if the spectrogram should be smoothed or not (smoothing can help with trace line calculation). Smoothing is performed using a 2D Gaussian kernel function.
    - **<ins>Trace Line Calculation</ins>**
-     - ***Trace_Penalty_Coefficients*** - Values of coefficients to use in the penalty function used to draw trace lines. [FURTHER DOCUMENTATION IN PROGRESS]
+     - ***Trace_Penalty_Sigma*** - Standard deviation of a Normal distribution applied to changes in frequency from one time bin to the next (Hz). This distribution is used to calculate penalty factors for finding trace lines.
+     - ***Trace_Penalty_At_Sigma*** - Penalty score when the change in frequency from one time bin to the next is equal to *Trace_Penalty_Sigma* (dB). The penalty is applied as a power attenuation in decibels.
      - ***Trace_Energy_Percent*** - Percentage of energy within a trace line spanning the entire annotation window that determines initial start and stop times of a trace based on cumulative energy
      - ***Trace_Threshold_Type*** - Type of power threshold to use to refine trace line limits. Supported values are: `fixed`, `percentile`, and `xNoiseSD`. [FURTHER DOCUMENTATION IN PROGRESS]
      - ***Trace_Threshold_Val*** - Value used to determine the power threshold according to the threshold type. [FURTHER DOCUMENTATION IN PROGRESS]
