@@ -5,7 +5,7 @@ function PARAMS = importInputParams(paramFilePath)
 %
 % Written by Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-11-25
+% 2024-12-11
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -37,7 +37,8 @@ function PARAMS = importInputParams(paramFilePath)
     PARAMS.Downsampled_Sampling_Rate = readParam(paramFileText, 'Downsampled_Sampling_Rate', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','integer'})});
 
     %%% Trace line calculation
-    PARAMS.Trace_Penalty_Coefficients = readParam(paramFileText, 'Trace_Penalty_Coefficients', {@(var)validateattributes(var,{'numeric'},{'numel',2})});
+    PARAMS.Trace_Penalty_Sigma = readParam(paramFileText, 'Trace_Penalty_Sigma', {@(var)validateattributes(var,{'numeric'},{'scalar','positive'})});
+    PARAMS.Trace_Penalty_At_Sigma = readParam(paramFileText, 'Trace_Penalty_At_Sigma', {@(var)validateattributes(var,{'numeric'},{'scalar','nonnegative'})});
     PARAMS.Trace_Energy_Percent = readParam(paramFileText, 'Trace_Energy_Percent', {@(var)validateattributes(var,{'numeric'},{'scalar','positive','<=',100})});
     PARAMS.Trace_Threshold_Type = readParam(paramFileText, 'Trace_Threshold_Type', {@(var)validateattributes(var,{'char'},{'vector'})});
     PARAMS.Trace_Threshold_Val = readParam(paramFileText, 'Trace_Threshold_Val', {@(var)validateattributes(var,{'numeric'},{'scalar'})});

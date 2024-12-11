@@ -51,7 +51,7 @@ function varargout = MUPPET(varargin)
 %
 % Written by Mike Adams and Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-11-28
+% 2024-12-11
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -183,8 +183,8 @@ function varargout = MUPPET(varargin)
     stftN = PARAMS.NFFT;
     smoothSpec = PARAMS.Smooth_Spec;
     %%% Trace line calculation
-    trace_penalty_coeff = PARAMS.Trace_Penalty_Coefficients(1);
-    trace_penalty_exp = PARAMS.Trace_Penalty_Coefficients(2);
+    trace_penalty_sigma = PARAMS.Trace_Penalty_Sigma;
+    trace_penalty_at_sigma = PARAMS.Trace_Penalty_At_Sigma;
     trace_energy_percent = PARAMS.Trace_Energy_Percent;
     trace_th_type = validatestring(lower(PARAMS.Trace_Threshold_Type), {'fixed','percentile','xnoisesd'});
     trace_th_val = PARAMS.Trace_Threshold_Val;
@@ -441,7 +441,7 @@ function varargout = MUPPET(varargin)
                 
                 %%% find the best trace line
                 try
-                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'PowerThreshold',trace_power_th, 'EnergyPercent',trace_energy_percent);
+                    [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',trace_power_th, 'EnergyPercent',trace_energy_percent);
                     
                     %** INCLUDE ALTERNATE TESTS HERE  
                     %[t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
@@ -451,7 +451,6 @@ function varargout = MUPPET(varargin)
                     %[t_trace_combined, f_trace_combined] = MUPPET.getTraceLine_PercentEnergy(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyPercent',EnergyPercent, 'ScoreType','combined');
                     %[t_trace_single, f_trace_single] = MUPPET.getTraceLine_PercentEnergySingle(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyPercent',EnergyPercent);
                     %[t_trace_3sd, f_trace_3sd] = MUPPET.getTraceLine_Hybrid(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyThreshold',3*std(psdm_noise_anal_demeaned(:)), 'EnergyPercent',EnergyPercent);
-                    
                     
                     %%% compile all trace line tests
                     %%% (data will only be extracted from the first)

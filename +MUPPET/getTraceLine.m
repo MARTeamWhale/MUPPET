@@ -13,7 +13,7 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % 
 %
 % Written by Wilfried Beslin
-% Last updated 2024-11-28
+% Last updated 2024-12-11
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEV NOTES:
@@ -35,21 +35,18 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
 % function and continue using Dijkstra only.
 
     p = inputParser;
-    p.addParameter('PenaltyCoefficient', 0.01, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
-    p.addParameter('PenaltyExponent', 3, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
+    p.addParameter('PenaltySigma', 5, @(val)validateattributes(val,{'numeric'},{'scalar','positive'}));
+    p.addParameter('PenaltyAtSigma', 10, @(val)validateattributes(val,{'numeric'},{'scalar','nonnegative'}));
     p.addParameter('PowerThreshold', -Inf, @(val)validateattributes(val,{'numeric'},{'scalar'}));
     p.addParameter('EnergyPercent', 90, @(val)validateattributes(val,{'numeric'},{'scalar','positive','<=',100}));
     p.addParameter('NumAveragingPaths', 1, @(val)validateattributes(val,{'numeric'},{'scalar','positive'}));
 
     p.parse(varargin{:})
-    penalty_coeff = p.Results.PenaltyCoefficient;
-    penalty_exp = p.Results.PenaltyExponent;
+    penalty_sigma = p.Results.PenaltySigma;
+    penalty_at_sigma = p.Results.PenaltyAtSigma;
     pow_th = p.Results.PowerThreshold;
     eng_perc = p.Results.EnergyPercent;
     num_ave = p.Results.NumAveragingPaths;
-    
-    % define the penalty function for jumps across fequency
-    penalty_fcn = @(df) penalty_coeff.*(df.^penalty_exp) + 1;
     
     % get counts from spectrogram
     [nf, nt] = size(logpsdm);
@@ -69,11 +66,11 @@ function [t_trace, f_trace] = getTraceLine(t_stft, f_stft, logpsdm, varargin)
     
     %%% forward
     fw_node_weights = all_node_weights(:,(i_peak+1):end);
-    fw_net = makePathNetwork(j_peak, fw_node_weights, f_stft, penalty_fcn);
+    fw_net = makePathNetwork(j_peak, fw_node_weights, f_stft, penalty_sigma, penalty_at_sigma);
     
     %%% backward
     bw_node_weights = all_node_weights(:,(i_peak-1):-1:1);
-    bw_net = makePathNetwork(j_peak, bw_node_weights, f_stft, penalty_fcn);
+    bw_net = makePathNetwork(j_peak, bw_node_weights, f_stft, penalty_sigma, penalty_at_sigma);
     
     % find the best paths through the forward and backward networks
     j_trace_fw = getBestPath(fw_net, fw_node_weights, num_ave);
@@ -108,11 +105,13 @@ end
 
 
 %% makePathNetwork --------------------------------------------------------
-function path_net = makePathNetwork(r_start, jumpnode_weights, penalty_var, penalty_fcn)
+function path_net = makePathNetwork(r_start, jumpnode_weights, penalty_var, penalty_sigma, penalty_at_sigma)
 % Create a weighted directional graph representing every possible path from
 % a starting point through to the end of a rectangular network of nodes.
 % Intended to represent (partial) trace lines through a spectrogram.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    import MUPPET.calcFreqJumpPenalty
 
     % Here, "jump node" means any node except the starting node.
     % Jump nodes are arranged in a rectangular matrix, and paths flow
@@ -142,14 +141,17 @@ function path_net = makePathNetwork(r_start, jumpnode_weights, penalty_var, pena
     initial_edge_weight_mat = repelem(jumpnode_weights(:,2:end), 1, n_rows);
     initial_edge_weight_mat = [jumpnode_weights(:,1), initial_edge_weight_mat];
     
-    % create matrix of penalty factors for each jump
-    penalty_factor_refmat = abs(repmat(penalty_var, 1, n_rows) - repmat(penalty_var', n_rows, 1));
-    edge_penalty_factor_mat = repmat(penalty_factor_refmat, 1, n_jumpnode_cols-1);
-    edge_penalty_factor_mat = [abs(penalty_var - penalty_var(r_start)), edge_penalty_factor_mat];
-    edge_penalty_mat = penalty_fcn(edge_penalty_factor_mat);
+    % create matrix of penalty scores for each jump
+    %%% start with a pairwise matrix of jump magnitudes (y-axis)
+    jumpsize_refmat = repmat(penalty_var, 1, n_rows) - repmat(penalty_var', n_rows, 1);
+    %%% create matrix of jump magnitudes (y-axis) for every jump
+    jumpsize_edge_mat = repmat(jumpsize_refmat, 1, n_jumpnode_cols-1);
+    jumpsize_edge_mat = [penalty_var - penalty_var(r_start), jumpsize_edge_mat];
+    %%% calculate penalty scores to be added to each weight
+    edge_penalties = calcFreqJumpPenalty(jumpsize_edge_mat, 0, penalty_sigma, penalty_at_sigma);
     
     % combine the original weight matrix with the penalty matrix
-    final_edge_weight_mat = initial_edge_weight_mat .* edge_penalty_mat;
+    final_edge_weight_mat = initial_edge_weight_mat + edge_penalties;
     
     % create the source node, target node, and edge weight vectors that
     % will be used to construct the directional graph object

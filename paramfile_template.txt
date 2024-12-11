@@ -1,7 +1,7 @@
 ###########################################################################
 #
 # TEMPLATE PARAMETER FILE FOR MUPPET
-# Last updated 2024-11-25
+# Last updated 2024-12-11
 #
 # Use this file as a base to create parameter lists for specific analyses.
 #
@@ -39,10 +39,11 @@
 
 # TRACE LINE CALCULATION
 #-----------------------
-    Trace_Penalty_Coefficients = [0.01, 3.0]	# Values of coefficients to use in the penalty function used to draw trace lines. WIP, DOCUMENTATION TBD
-    Trace_Energy_Percent = 90			# Percentage of energy within a trace line spanning the entire annotation window that determines initial start and stop times of a trace based on cumulative energy
-    Trace_Threshold_Type = xNoiseSD		# Type of threshold to use to refine trace line limits. Supported values are 'fixed', 'percentile', and 'xNoiseSD'. DOCUMENTATION TBD
-    Trace_Threshold_Val = 3.0			# Value used to determine the SNR threshold according to the threshold type. DOCUMENTATION TBD
+    Trace_Penalty_Sigma = 5		# Standard deviation of a Normal distribution applied to changes in frequency from one time bin to the next (Hz). This distribution is used to calculate penalty factors for finding trace lines.
+    Trace_Penalty_At_Sigma = 10		# Penalty score when the change in frequency from one time bin to the next is equal to Trace_Penalty_Sigma (dB). The penalty is applied as a power attenuation in decibels.
+    Trace_Energy_Percent = 90		# Percentage of energy within a trace line spanning the entire annotation window that determines initial start and stop times of a trace based on cumulative energy
+    Trace_Threshold_Type = xNoiseSD	# Type of threshold to use to refine trace line limits. Supported values are 'fixed', 'percentile', and 'xNoiseSD'. DOCUMENTATION TBD
+    Trace_Threshold_Val = 3.0		# Value used to determine the SNR threshold according to the threshold type. DOCUMENTATION TBD
 
 
 # TRACE LINE PLOT PARAMETERS
