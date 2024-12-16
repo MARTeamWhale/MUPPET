@@ -518,6 +518,15 @@ function varargout = MUPPET(varargin)
                     MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_plot, t_trace_all, f_trace_all, [f_min_ann,f_max_ann], 'LineData',trace_plot_data, 'CAxis',caxis_val, 'LogCols',log_specplot_cols);
                     ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
                     xlim(ax,t_stft([1,end]))
+
+                    % add lines representing fullband %-energy limits
+                    tSigStart_re_annot = (sigPos(1) - annotPos(1))./FsResampled;
+                    tSigStop_re_annot = (sigPos(2) - annotPos(1))./FsResampled;
+                    fPlotMin = ax.YLim(1);
+                    fPlotMax = ax.YLim(2);
+                    plot3(ax, [tSigStart_re_annot,tSigStart_re_annot,NaN,tSigStop_re_annot,tSigStop_re_annot], [fPlotMin,fPlotMax,NaN,fPlotMin,fPlotMax], repelem(ax.ZLim(2),5), 'w:')
+
+                    % update colormap
                     try
                         colormap(ax, colmap);
                     catch ME
