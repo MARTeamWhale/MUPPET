@@ -1,4 +1,9 @@
 # MATLAB autosave files
 *.asv
+
+# DEV folder
+DEV/**
+
+# I/O folders
 INPUT/
 SNR_OUTPUT/
