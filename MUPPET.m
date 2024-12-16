@@ -51,7 +51,7 @@ function varargout = MUPPET(varargin)
 %
 % Written by Mike Adams and Wilfried Beslin
 % Last updated by Wilfried Beslin
-% 2024-12-11
+% 2024-12-16
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %DEV NOTE: https://www.mathworks.com/help/matlab/ref/listdlg.html
@@ -448,7 +448,7 @@ function varargout = MUPPET(varargin)
                      %** CHANGE AS NEEDED *******************************
                      %alt_trace_args = [alt_trace_args, {{'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',3.5*std(psdm_noise_anal_demeaned(:)), 'EnergyPercent',trace_energy_percent}}];
                      %alt_trace_args = [alt_trace_args, {{'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',4*std(psdm_noise_anal_demeaned(:)), 'EnergyPercent',trace_energy_percent}}];
-                     %alt_trace_args = [alt_trace_args, {{'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',trace_power_th, 'EnergyPercent',100}}];
+                     %alt_trace_args = [alt_trace_args, {{'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',trace_power_th, 'EnergyPercent',90}}];
                      %** END CHANGE *************************************
 
                      % compile all trace line types
@@ -470,7 +470,7 @@ function varargout = MUPPET(varargin)
                             'Marker', {'x','o'},...
                             'MarkerSize', {4,4},...
                             'LineWidth', {0.5,0.5},...
-                            'DisplayName', {'Paramfile','Alt'}...
+                            'DisplayName', {'E100','E90'}...
                             );
                     end
                     
@@ -508,14 +508,16 @@ function varargout = MUPPET(varargin)
                         log_specplot_cols = false;
                     end
                     
+                    % setup figure and axes
                     fig = gcf();
                     fig.Visible = 'off';
                     clf(fig);
                     ax = axes();
 
+                    % make plot
                     MUPPET.plotTraceLine(ax, t_stft, f_stft, psdm_plot, t_trace_all, f_trace_all, [f_min_ann,f_max_ann], 'LineData',trace_plot_data, 'CAxis',caxis_val, 'LogCols',log_specplot_cols);
                     ylim(ax,[LowerPassbandFreq,UpperPassbandFreq])
-                    xlim(t_stft([1,end]))
+                    xlim(ax,t_stft([1,end]))
                     try
                         colormap(ax, colmap);
                     catch ME
@@ -523,9 +525,11 @@ function varargout = MUPPET(varargin)
                         colormap(ax, 'parula');
                     end
 
-                    %title(sprintf('%s - No. %d\n\\rmCost = %g\\it\\Deltaf\\rm^{%g} + 1;   Th=%.2fdB,  MaxTGap=%.2fs,  MaxFGap=%gHz', strrep(outfile_refname,'_','\_'), w, trace_penalty_coeff, trace_penalty_exp, th_psdm, trace_max_t_gap, trace_max_f_gap))
-                    title(sprintf('%s - No. %d', strrep(outfile_refname,'_','\_'), w))
-                    %** Need to improve the plot title (and filename maybe?)
+                    % set plot title
+                    datasetname_printf = strrep(outfile_refname, '_', '\_');
+                    wavname_printf = strrep(PLA.filename{w}, '_', '\_');
+                    plot_title = sprintf('\\bf %s - Call ID = %d\n\\rm %s, t = %.2f s', datasetname_printf, w, wavname_printf, PLA_Start);
+                    title(ax, plot_title)
 
                     % save the plot
                     PATH2OUTPUT_TRACEPLOT_FILE = fullfile(PATH2OUTPUT_TRACEPLOTS, ['Trace_',num2str(w),'.png']);
