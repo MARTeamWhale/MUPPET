@@ -443,30 +443,34 @@ function varargout = MUPPET(varargin)
                 try
                     [t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',trace_power_th, 'EnergyPercent',trace_energy_percent);
                     
-                    %** INCLUDE ALTERNATE TESTS HERE  
-                    %[t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th, 'MaxTimeGap',trace_max_t_gap, 'MaxFreqGap',trace_max_f_gap);
-                    %[t_trace, f_trace] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th1);
-                    %[t_trace_clipped, f_trace_clipped] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'Threshold1',spec_snr_th1, 'Threshold2',spec_snr_th2, 'TimeGapTol',0.2, 'MinSegDur',1);
-                    %[t_trace_length, f_trace_length] = MUPPET.getTraceLine_PercentEnergy(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyPercent',EnergyPercent, 'ScoreType','length');
-                    %[t_trace_combined, f_trace_combined] = MUPPET.getTraceLine_PercentEnergy(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyPercent',EnergyPercent, 'ScoreType','combined');
-                    %[t_trace_single, f_trace_single] = MUPPET.getTraceLine_PercentEnergySingle(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyPercent',EnergyPercent);
-                    %[t_trace_3sd, f_trace_3sd] = MUPPET.getTraceLine_Hybrid(t_stft, f_stft_annwin, psdm_anal_annwin, 'PenaltyCoefficient',trace_penalty_coeff, 'PenaltyExponent',trace_penalty_exp, 'EnergyThreshold',3*std(psdm_noise_anal_demeaned(:)), 'EnergyPercent',EnergyPercent);
-                    
-                    %%% compile all trace line tests
-                    %%% (data will only be extracted from the first)
-                    t_trace_all = {t_trace};
-                    f_trace_all = {f_trace};
+                     %** parameters for alternate trace lines
+                     alt_trace_args = {};
+                     %** CHANGE AS NEEDED *******************************
+                     %alt_trace_args = [alt_trace_args, {{'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',3.5*std(psdm_noise_anal_demeaned(:)), 'EnergyPercent',trace_energy_percent}}];
+                     %alt_trace_args = [alt_trace_args, {{'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',4*std(psdm_noise_anal_demeaned(:)), 'EnergyPercent',trace_energy_percent}}];
+                     %alt_trace_args = [alt_trace_args, {{'PenaltySigma',trace_penalty_sigma, 'PenaltyAtSigma',trace_penalty_at_sigma, 'PowerThreshold',trace_power_th, 'EnergyPercent',100}}];
+                     %** END CHANGE *************************************
+
+                     % compile all trace line types
+                     %%% (data will only be extracted from the first)
+                     t_trace_all = {t_trace};
+                     f_trace_all = {f_trace};
+                     for ii = 1:numel(alt_trace_args)
+                         [t_trace_ii, f_trace_ii] = MUPPET.getTraceLine(t_stft, f_stft_annwin, psdm_anal_annwin, alt_trace_args{ii}{:});
+                         t_trace_all = [t_trace_all, {t_trace_ii}];
+                         f_trace_all = [f_trace_all, {f_trace_ii}];
+                     end
                     
                     %%% override plot data if there are multiple trace
                     %%% lines
                     if numel(t_trace_all) > 1
                         %%% CHANGE AS NEEDED
                         trace_plot_data = struct(...
-                            'Color', {'m'},...
-                            'Marker', {'o'},...
-                            'MarkerSize', {4},...
-                            'LineWidth', {0.5},...
-                            'DisplayName', {'Default'}...
+                            'Color', {'r','c'},...
+                            'Marker', {'x','o'},...
+                            'MarkerSize', {4,4},...
+                            'LineWidth', {0.5,0.5},...
+                            'DisplayName', {'Paramfile','Alt'}...
                             );
                     end
                     
