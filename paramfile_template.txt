@@ -1,7 +1,7 @@
 ###########################################################################
 #
 # TEMPLATE PARAMETER FILE FOR MUPPET
-# Last updated 2024-12-11
+# Last updated 2024-12-16
 #
 # Use this file as a base to create parameter lists for specific analyses.
 #
@@ -13,14 +13,18 @@
 # BANDPASS FILTER PARAMETERS
 #---------------------------
     Lower_Passband_Frequency = 22	# Lower bound of the bandpass filter before which frequencies become attenuated (Hz)
+
     Upper_Passband_Frequency = 118	# Upper bound of the bandpass filter after which frequencies become attenuated (Hz)
+
     Stopband_Rolloff_Bandwidth = 10	# Amount of frequency bandwidth that it takes for the passband frequencies to be attenuated to a level of -60 dB (Hz)
 
 
 # SIGNAL AND NOISE ISOLATION
 #---------------------------
     Noise_Distance = 1.0		# Amount of separation between the end of the noise window to be taken and the beginning of the signal (s)
+
     Ideal_Noise_Duration = 10.0		# Duration that the noise estimate window should ideally have. May be specified as a fixed time (s) or as the string 'equal' (without quotes) to match signal durations.
+
     Signal_Energy_Percent = 90		# Percentage of energy within a signal window that determines the start and stop times of a signal based on cumulative energy
 
 
@@ -32,27 +36,39 @@
 # STFT (SPECTROGRAM) PARAMETERS
 -------------------------------
     STFT_Win_Size = 8192	# Number of samples to extract from the time series for each STFT bin. Bigger values increase the true frequency resolution, but at the cost of true time resolution. To get this number in seconds, divide it by the downsampled sampling rate.
+
     STFT_Step_Size = 819	# Number of samples to skip forward when processing successive STFT bins. Smaller values increase the number of points that will appear along the time axis of a spectrogram, but result in more bins to process. To get this number in seconds, divide it by the downsampled sampling rate.
+
     NFFT = 8192			# Number of points to use in FFT calculations during STFT. This works best as a power of 2 and must be >= STFT_Win_Size. If larger than STFT_Win_Size, then zeros will be added to complete the STFT window (adding zeros makes the frequency axis look smoother but does not truly increase the resolution of frequency content within the data).
+
     Smooth_Spec = true		# Determines if the spectrogram should be smoothed or not (smoothing can help with trace line calculation). Smoothing is performed using a 2D Gaussian kernel function.
 
 
 # TRACE LINE CALCULATION
 #-----------------------
     Trace_Penalty_Sigma = 5		# Standard deviation of a Normal distribution applied to changes in frequency from one time bin to the next (Hz). This distribution is used to calculate penalty factors for finding trace lines.
+
     Trace_Penalty_At_Sigma = 10		# Penalty score when the change in frequency from one time bin to the next is equal to Trace_Penalty_Sigma (dB). The penalty is applied as a power attenuation in decibels.
-    Trace_Energy_Percent = 90		# Percentage of energy within a trace line spanning the entire annotation window that determines initial start and stop times of a trace based on cumulative energy
+
+    Trace_Energy_Percent = 100		# Percentage of energy within a trace line spanning the entire annotation window that determines initial start and stop times of a trace based on cumulative energy
+
     Trace_Threshold_Type = xNoiseSD	# Type of threshold to use to refine trace line limits. Supported values are 'fixed', 'percentile', and 'xNoiseSD'. DOCUMENTATION TBD
+
     Trace_Threshold_Val = 3.0		# Value used to determine the SNR threshold according to the threshold type. DOCUMENTATION TBD
 
 
 # TRACE LINE PLOT PARAMETERS
 #---------------------------
     Spec_Plot_Colour_Map = parula	# Name of MATLAB colourmap to use for spectrogram plots
+
     Log_Spec_Plot_Colours = false	# Determines if the spectrogram colour scale should be in 'linear' or 'log' scale. Note that actual power values are in dB, so they already follow a log scale.
+
     Trace_Plot_Line_Colour = m		# Colour of trace lines on plot
+
     Trace_Plot_Line_Width = 0.5		# Thickness of trace lines on plot
+
     Trace_Plot_Marker_Type = o		# Determines the symbol that will denote individual points along the trace line
+
     Trace_Plot_Marker_Size = 4		# Size of trace point markers
 
 
