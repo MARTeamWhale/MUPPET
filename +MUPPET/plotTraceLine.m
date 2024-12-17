@@ -2,7 +2,7 @@ function ax = plotTraceLine(varargin)
 % plots the trace line of a call against a spectrogram.
 %
 % Written by Wilfried Beslin
-% Last updated 2024-09-09
+% Last updated 2024-12-17
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -107,7 +107,8 @@ function ax = plotTraceLine(varargin)
     
     % create legend if there is more than one trace
     if num_traces > 1
-        legend(ax, line_obj, 'Location','northeast')
+        lgd = legend(ax, line_obj, 'Location','northeast');
+        lgd.AutoUpdate = 'off';
     end
     
     %** TEST
