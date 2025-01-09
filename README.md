@@ -129,10 +129,9 @@ As the tool processes each PAMLAB annotation CSV file it finds, it will, by defa
 **Trace Output CSV Contents:**
 TO DO
 
-## Functions [NEEDS UPDATING]
+## Functions
 MUPPET employs a toolbox of custom functions to calculate the parameters of mysticete calls. 
 
-  - **isolateFilteredSNClip** - Isolate signal and associated noise samples from a larger audio time series vector, given a pre-determined signal location. Works by isolating a subsection of the audio vector and applyinging a bandpass filter to it before extracting signal and noise samples.
   - **calcEng** - Calculate the 90% energy start and stop position of a input signal.
   - **noDelayFilt** - Filter a signal using a digitalFilter object from the Signal Processing Toolbox, compensating for group delay introduced by the filter. This function only works if the delay is not frequency-dependent (usually the case with FIR filters). It will generally NOT work with IIR filters like the Butterworth filter.
   - **calculateSNR** - Calculate signal-to-noise ratio, given pre-isolated windows of signal and noise.
@@ -142,6 +141,10 @@ MUPPET employs a toolbox of custom functions to calculate the parameters of myst
   - **getTraceLine** -  Find an ideal trace line through a call in a spectrogram by using a "shortest path" searching algorithm (Dijkstra's algorithm) followed by energy-based clipping.
   - **plotTraceLine** - Plots the trace line of a call against a spectrogram.
   - **extractCallParams** - Calculate several time, frequency, and time-frequency parameters for baleen whale calls.
+  - **calcFreqJumpPenalty** - Transforms an input array of frequency differences into penalty scores (intended to be in dB), to be used for tracing time-frequency changes within a call.
+  - **getProcessedSNClip** - Extract a clip from a larger audio timeseries vector that contains a signal of interest and associated noise samples preceding the signal. The clip is bandpass-filtered and may be downsampled to a target sampling rate.
+  - **importInputParams** - Returns a struct of parameters read from a text file of parameters for MUPPET.
+    
 
 
 ## Parameter Calculation
