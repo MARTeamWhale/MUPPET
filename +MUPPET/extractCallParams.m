@@ -235,7 +235,7 @@ function param = get_PeakFrequency_Trace(sigPosRel, fs, f_stft, psd, perEng, tra
 % line occurs, in Hertz
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    [~, i_max] = max(trace_line.Power_dB);
+    [~, i_max] = max(trace_line.RelPow_dB);
     param = trace_line.Freq(i_max);
 end
 
